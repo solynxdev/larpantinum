@@ -20,6 +20,51 @@ Item {
     readonly property bool isNiri: NiriState.isNiri
     property bool isSway: false
     readonly property string myOutput: (barWindow && barWindow.screen && barWindow.screen.name) ? barWindow.screen.name : ""
+    readonly property bool isHyprland: !isNiri && !isSway
+
+    // The Hyprland monitor this bar sits on. The workspace list must follow this monitor's
+    // active workspace, not whichever monitor currently holds keyboard focus.
+    readonly property var hyprMonitor: (typeof Hyprland !== "undefined" && Hyprland.monitors && Hyprland.monitors.values && myOutput !== "")
+        ? (Hyprland.monitors.values.find(m => m.name === myOutput) ?? null)
+        : null
+
+    // Numeric workspaces on this monitor, ascending. With the split-monitor-workspaces
+    // Hyprland plugin the id space is partitioned per monitor (e.g. HDMI-A-1 owns 1-100,
+    // DP-3 owns 101-200), so the Nth entry is "workspace N" on this monitor.
+    readonly property var hyprMonitorWsIds: {
+        if (typeof Hyprland === "undefined" || !Hyprland.workspaces || !Hyprland.workspaces.values || !hyprMonitor)
+            return [];
+        let ids = Hyprland.workspaces.values
+            .filter(w => w.id > 0 && w.monitor && w.monitor.name === myOutput)
+            .map(w => w.id);
+        ids.sort((a, b) => a - b);
+        return ids;
+    }
+
+    // Treat partitioned numbering as active when this monitor owns a block that does not
+    // start at 1, or one far larger than a normal bar shows. Set bar.workspacesSplitMonitor
+    // to true/false in settings.json to override the detection.
+    readonly property bool splitMonitor: {
+        let dummy = configRevision;
+        if (typeof Config !== "undefined" && Config.rawSettings && Config.rawSettings.bar
+            && Config.rawSettings.bar.workspacesSplitMonitor !== undefined)
+            return Boolean(Config.rawSettings.bar.workspacesSplitMonitor);
+        if (!isHyprland || hyprMonitorWsIds.length === 0) return false;
+        if (hyprMonitorWsIds[0] > 1 && hyprMonitorWsIds.length >= 5) return true;
+        return hyprMonitorWsIds.length > Math.max(baseWorkspaceCount, 15);
+    }
+
+    // Face index (0-based within this monitor's list) <-> absolute Hyprland workspace id.
+    function wsIdForIndex(index) {
+        if (splitMonitor && index >= 0 && index < hyprMonitorWsIds.length) return hyprMonitorWsIds[index];
+        return index + 1;
+    }
+
+    function indexForWsId(id) {
+        if (splitMonitor) return hyprMonitorWsIds.indexOf(id);
+        return id - 1;
+    }
+
     readonly property int niriActiveIndex: NiriState.activeIndexFor(myOutput)
     readonly property var niriOccupiedMap: NiriState.occupiedMap
     readonly property var niriExistingMap: NiriState.existingMap
@@ -76,6 +121,7 @@ Item {
         let count = base;
         if (act >= count) count = act + 1;
         if (isNiri && niriMaxWorkspaceIndex >= count) count = niriMaxWorkspaceIndex + 1;
+        if (splitMonitor && hyprMonitorWsIds.length > 0) count = Math.min(count, hyprMonitorWsIds.length);
         return Math.max(2, count);
     }
 
@@ -148,7 +194,7 @@ Item {
     function isOccupied(index) {
         if (isNiri) return !!(niriExistingMap[index] && niriOccupiedMap[index]);
         if (isSway) return !!swayOccupiedMap[index];
-        let ws = wsForId(index + 1);
+        let ws = wsForId(wsIdForIndex(index));
         return ws !== null && ws.toplevels && ws.toplevels.values && ws.toplevels.values.length > 0;
     }
 
@@ -165,7 +211,7 @@ Item {
             swayActiveIndex = index;
             Quickshell.execDetached(["swaymsg", "workspace", "number", wsId.toString()]);
         } else {
-            Hyprland.dispatch("hl.dsp.focus({ workspace = " + wsId + " })");
+            Hyprland.dispatch("hl.dsp.focus({ workspace = " + wsIdForIndex(index) + " })");
         }
     }
 
@@ -176,9 +222,9 @@ Item {
         } else if (isSway) {
             idx = swayActiveIndex;
         } else {
-            const fw = Hyprland.focusedWorkspace;
-            if (!fw) return -1;
-            idx = fw.id - 1;
+            const ws = (hyprMonitor && hyprMonitor.activeWorkspace) ? hyprMonitor.activeWorkspace : Hyprland.focusedWorkspace;
+            if (!ws) return -1;
+            idx = indexForWsId(ws.id);
         }
         return idx >= 0 ? idx : -1;
     }
@@ -288,7 +334,10 @@ Item {
                 let steps = Math.trunc(root.wheelAccumulator / threshold);
                 root.wheelAccumulator = root.wheelAccumulator % threshold;
 
-                if (root.workspaceCount > 1) {
+                let wheelRange = root.workspaceCount;
+                if (root.splitMonitor && root.hyprMonitorWsIds.length > 0)
+                    wheelRange = root.hyprMonitorWsIds.length;
+                if (wheelRange > 1) {
                     if (root.isNiri) {
                         if (steps > 0) {
                             Quickshell.execDetached(["niri", "msg", "action", "focus-workspace-up"]);
@@ -299,12 +348,12 @@ Item {
                         let cur = root.activeIndex;
                         let nextIndex = 0;
                         if (cur < 0) {
-                            nextIndex = steps > 0 ? (root.workspaceCount - 1) : 0;
+                            nextIndex = steps > 0 ? (wheelRange - 1) : 0;
                         } else {
                             if (steps > 0) {
-                                nextIndex = (cur - 1 + root.workspaceCount) % root.workspaceCount;
+                                nextIndex = (cur - 1 + wheelRange) % wheelRange;
                             } else if (steps < 0) {
-                                nextIndex = (cur + 1) % root.workspaceCount;
+                                nextIndex = (cur + 1) % wheelRange;
                             }
                         }
                         if (nextIndex !== root.activeIndex) {
