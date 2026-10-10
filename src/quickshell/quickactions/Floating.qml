@@ -354,6 +354,12 @@ Variants {
                         floatingWidget.showSystemUsage();
                     }
                 }
+
+                function onToggleSidebarRequested(screen) {
+                    if (floatingWidget.matchesScreen(screen)) {
+                        floatingWidget.toggleSidebar();
+                    }
+                }
             }
 
             function matchesScreen(targetScreen) {
@@ -377,6 +383,23 @@ Variants {
                     }
                 }
                 floatingWidget.activeIndex = sysIndex;
+                let sideEdge = (floatingWidget.barPosition === "left") ? "right" : "left";
+                let centerPos = floatingWidget.height / 2;
+                floatingWidget.useGraceTimer = true;
+                floatingWidget.showSidebar(sideEdge, centerPos, true);
+                hideTimer.restart();
+            }
+
+            function toggleSidebar() {
+                if (floatingWidget.isSidebarVisible) {
+                    floatingWidget.isExpanded = false;
+                    if (!floatingWidget.isPinned) {
+                        floatingWidget.isSidebarVisible = false;
+                        floatingWidget.isPeekVisible = true;
+                        peekHideTimer.restart();
+                    }
+                    return;
+                }
                 let sideEdge = (floatingWidget.barPosition === "left") ? "right" : "left";
                 let centerPos = floatingWidget.height / 2;
                 floatingWidget.useGraceTimer = true;

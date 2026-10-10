@@ -9,6 +9,7 @@ Item {
 
     signal setIndexRequested(var screen, string index)
     signal showSystemUsageRequested(var screen)
+    signal toggleSidebarRequested(var screen)
 
     function targetScreen(screen) {
         if (screen) return screen;
@@ -26,6 +27,11 @@ Item {
         if (target) controller.showSystemUsageRequested(target);
     }
 
+    function toggleSidebar(screen) {
+        let target = targetScreen(screen);
+        if (target) controller.toggleSidebarRequested(target);
+    }
+
     IpcHandler {
         target: "floating"
 
@@ -35,6 +41,10 @@ Item {
 
         function showSystemUsage() {
             controller.showSystemUsage(null);
+        }
+
+        function toggleSidebar() {
+            controller.toggleSidebar(null);
         }
 
         function forceReload() {
