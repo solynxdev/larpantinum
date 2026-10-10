@@ -395,7 +395,7 @@ Item {
         command: [
             "bash",
             "-c",
-            'FILE="${XDG_CACHE_HOME:-$HOME/.cache}/serpantinum/github/user.txt"; if [ -f "$FILE" ]; then cat "$FILE"; fi'
+            'FILE="${XDG_CACHE_HOME:-$HOME/.cache}/larpantinum/github/user.txt"; if [ -f "$FILE" ]; then cat "$FILE"; fi'
         ]
         running: false
         stdout: StdioCollector {
@@ -416,7 +416,7 @@ Item {
         command: [
             "bash",
             "-c",
-            'DIR="${XDG_CACHE_HOME:-$HOME/.cache}/serpantinum/github"; mkdir -p "$DIR"; printf "%s" "$1" > "$DIR/user.txt"',
+            'DIR="${XDG_CACHE_HOME:-$HOME/.cache}/larpantinum/github"; mkdir -p "$DIR"; printf "%s" "$1" > "$DIR/user.txt"',
             "--",
             pendingUser
         ]
@@ -430,7 +430,7 @@ Item {
         command: [
             "bash",
             "-c",
-            'FILE="${XDG_CACHE_HOME:-$HOME/.cache}/serpantinum/github/${1}_${2}.json"; if [ -f "$FILE" ] && [ -s "$FILE" ]; then cat "$FILE"; else echo "CACHE_MISS"; fi',
+            'FILE="${XDG_CACHE_HOME:-$HOME/.cache}/larpantinum/github/${1}_${2}.json"; if [ -f "$FILE" ] && [ -s "$FILE" ]; then cat "$FILE"; else echo "CACHE_MISS"; fi',
             "--",
             targetUser,
             targetYear.toString()
@@ -465,7 +465,7 @@ Item {
         command: [
             "bash",
             "-c",
-            'DIR="${XDG_CACHE_HOME:-$HOME/.cache}/serpantinum/github"; mkdir -p "$DIR"; printf "%s" "$3" > "$DIR/${1}_${2}.json"',
+            'DIR="${XDG_CACHE_HOME:-$HOME/.cache}/larpantinum/github"; mkdir -p "$DIR"; printf "%s" "$3" > "$DIR/${1}_${2}.json"',
             "--",
             targetUser,
             targetYear.toString(),

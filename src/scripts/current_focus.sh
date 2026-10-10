@@ -2,7 +2,7 @@
 
 source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/caching.sh"
 
-RUN_DIR="${QS_RUN_FOCUSTIME:-${XDG_RUNTIME_DIR:-/run/user/${UID:-$(id -u)}}/serpantinum/focustime}"
+RUN_DIR="${QS_RUN_FOCUSTIME:-${XDG_RUNTIME_DIR:-/run/user/${UID:-$(id -u)}}/larpantinum/focustime}"
 mkdir -p "$RUN_DIR" 2>/dev/null
 
 PID_FILE="$RUN_DIR/current_focus.pid"

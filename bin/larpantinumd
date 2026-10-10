@@ -68,7 +68,7 @@ get_all_children() {
 }
 
 get_installed_version() {
-    local version_file="${XDG_STATE_HOME:-$HOME/.local/state}/serpantinum/version"
+    local version_file="${XDG_STATE_HOME:-$HOME/.local/state}/larpantinum/version"
     local ver=""
     if [ -f "$version_file" ]; then
         ver=$(awk -F= '/^SERPANTINUM_VERSION=/{gsub(/["'\'' ]/, "", $2); print $2}' "$version_file")
@@ -117,7 +117,7 @@ while [ $# -gt 0 ]; do
             shift
             ;;
         -V|--version)
-            echo "serpantinumd v$(get_installed_version)"
+            echo "larpantinumd v$(get_installed_version)"
             exit 0
             ;;
         -h|--help)
@@ -144,8 +144,8 @@ fi
 
 if [ "$COMMAND" == "stop" ]; then
     pid=""
-    if [ -f "/tmp/serpantinumd.pid" ]; then
-        pid="$(cat "/tmp/serpantinumd.pid" 2>/dev/null)"
+    if [ -f "/tmp/larpantinumd.pid" ]; then
+        pid="$(cat "/tmp/larpantinumd.pid" 2>/dev/null)"
     fi
 
     pkill -TERM -f "focus_daemon.py" 2>/dev/null
@@ -156,9 +156,9 @@ if [ "$COMMAND" == "stop" ]; then
     if [ -n "$pid" ] && is_alive "$pid"; then
         terminate_and_wait "$pid" 2
     else
-        pkill -TERM -f "serpantinumd" 2>/dev/null
+        pkill -TERM -f "larpantinumd" 2>/dev/null
         sleep 0.2
-        pkill -KILL -f "serpantinumd" 2>/dev/null
+        pkill -KILL -f "larpantinumd" 2>/dev/null
     fi
 
     pkill -KILL -f "focus_daemon.py" 2>/dev/null
@@ -166,16 +166,16 @@ if [ "$COMMAND" == "stop" ]; then
         pkill -KILL -f "quickshell.*$MAIN_QML" 2>/dev/null
     fi
 
-    rm -f "/tmp/serpantinumd.pid" 2>/dev/null
-    rm -f "/tmp/serpantinumd.lock" 2>/dev/null
+    rm -f "/tmp/larpantinumd.pid" 2>/dev/null
+    rm -f "/tmp/larpantinumd.lock" 2>/dev/null
     echo "$(t "daemon.cli.stopped")"
     exit 0
 fi
 
 if [ "$COMMAND" == "status" ]; then
     pid=""
-    if [ -f "/tmp/serpantinumd.pid" ]; then
-        pid="$(cat "/tmp/serpantinumd.pid" 2>/dev/null)"
+    if [ -f "/tmp/larpantinumd.pid" ]; then
+        pid="$(cat "/tmp/larpantinumd.pid" 2>/dev/null)"
     fi
     if [ -n "$pid" ] && is_alive "$pid"; then
         echo "$(t "daemon.cli.status_running" PID="$pid")"
@@ -187,11 +187,11 @@ if [ "$COMMAND" == "status" ]; then
 fi
 
 if [ "$COMMAND" == "start" ]; then
-    exec 9>"/tmp/serpantinumd.lock"
+    exec 9>"/tmp/larpantinumd.lock"
 
     if ! flock -n 9; then
         existing_pid=""
-        [ -f "/tmp/serpantinumd.pid" ] && existing_pid="$(cat "/tmp/serpantinumd.pid" 2>/dev/null)"
+        [ -f "/tmp/larpantinumd.pid" ] && existing_pid="$(cat "/tmp/larpantinumd.pid" 2>/dev/null)"
 
         if [ -n "$existing_pid" ] && is_alive "$existing_pid"; then
             echo "$(t "daemon.already_running")"
@@ -210,7 +210,7 @@ if [ "$COMMAND" == "start" ]; then
         fi
     fi
 
-    echo $$ > "/tmp/serpantinumd.pid"
+    echo $$ > "/tmp/larpantinumd.pid"
 
     CLEANUP_DONE=false
     LAUNCH_PID=""
@@ -281,8 +281,8 @@ if [ "$COMMAND" == "start" ]; then
         done
 
         exec 9>&- 2>/dev/null
-        rm -f "/tmp/serpantinumd.pid" 2>/dev/null
-        rm -f "/tmp/serpantinumd.lock" 2>/dev/null
+        rm -f "/tmp/larpantinumd.pid" 2>/dev/null
+        rm -f "/tmp/larpantinumd.lock" 2>/dev/null
         exit 0
     }
 

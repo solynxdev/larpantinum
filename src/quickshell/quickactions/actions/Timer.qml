@@ -36,7 +36,7 @@ Item {
     function alpha(color, a) { return Qt.rgba(color.r, color.g, color.b, a); }
 
     function getStorageDir() {
-        return Quickshell.env("QS_RUN_FOCUSTIME") || ((Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/serpantinum/focustime");
+        return Quickshell.env("QS_RUN_FOCUSTIME") || ((Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/larpantinum/focustime");
     }
 
     QtObject {

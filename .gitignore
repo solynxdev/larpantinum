@@ -2,3 +2,8 @@ src/assets/languages/add.py
 changelog.py
 .agents/
 AGENTS.md
+
+# larpantinum runtime config (kept out of the repo)
+settings.json
+settings.json.bak
+.settings_tmp_*

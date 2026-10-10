@@ -53,7 +53,7 @@ Item {
     function alpha(color, a) { return Qt.rgba(color.r, color.g, color.b, a); }
 
     function getStorageDir() {
-        return (typeof Caching !== "undefined" && Caching.stateDir ? Caching.stateDir : ((Quickshell.env("HOME") || "") + "/.local/state/serpantinum")) + "/quickactions";
+        return (typeof Caching !== "undefined" && Caching.stateDir ? Caching.stateDir : ((Quickshell.env("HOME") || "") + "/.local/state/larpantinum")) + "/quickactions";
     }
 
     property var notesList: []

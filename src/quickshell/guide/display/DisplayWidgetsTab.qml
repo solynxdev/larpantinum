@@ -203,7 +203,7 @@ Item {
         running: false
         command: {
             let assetsDir = Caching.serpantinumDir ? (Caching.serpantinumDir + "/assets/widgets") : "";
-            let userDir = Caching.stateDir ? (Caching.stateDir + "/widgets/presets") : (Caching.home + "/.local/state/serpantinum/widgets/presets");
+            let userDir = Caching.stateDir ? (Caching.stateDir + "/widgets/presets") : (Caching.home + "/.local/state/larpantinum/widgets/presets");
             let pyScript =
                 "import os, json, glob, sys\n" +
                 "assets_d = sys.argv[1]\n" +
@@ -364,7 +364,7 @@ Item {
 
     function deleteCustomPreset(presetName) {
         if (!presetName) return;
-        let userPath = Caching.stateDir ? (Caching.stateDir + "/widgets/presets") : (Caching.home + "/.local/state/serpantinum/widgets/presets");
+        let userPath = Caching.stateDir ? (Caching.stateDir + "/widgets/presets") : (Caching.home + "/.local/state/larpantinum/widgets/presets");
         let sanitizeName = String(presetName).replace(/[^a-zA-Z0-9_\- ]/g, "").trim();
         let filePath = userPath + "/" + sanitizeName + ".json";
         let escapeBash = function(str) { return String(str).replace(/(["\\$`])/g, '\\$1'); };
@@ -376,7 +376,7 @@ Item {
     }
 
     function saveCustomPreset(presetName, monName, widgetsList) {
-        let userPath = Caching.stateDir ? (Caching.stateDir + "/widgets/presets") : (Caching.home + "/.local/state/serpantinum/widgets/presets");
+        let userPath = Caching.stateDir ? (Caching.stateDir + "/widgets/presets") : (Caching.home + "/.local/state/larpantinum/widgets/presets");
         let sanitizeName = presetName.replace(/[^a-zA-Z0-9_\- ]/g, "").trim();
         if (sanitizeName === "") sanitizeName = "CustomPreset";
 

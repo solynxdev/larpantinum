@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-rm -f /tmp/serpantinumd.lock /tmp/serpantinumd.pid 2>/dev/null
+rm -f /tmp/larpantinumd.lock /tmp/larpantinumd.pid 2>/dev/null
 
 if command -v systemctl &>/dev/null && [ -d /run/systemd/system ]; then
     systemctl poweroff -i && exit 0

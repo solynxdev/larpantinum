@@ -7,13 +7,13 @@ fi
 
 export QS_DIR="$SERPANTINUM_DIR/quickshell"
 export MAIN_QML="$QS_DIR/Shell.qml"
-export IPC_SOCKET="${XDG_RUNTIME_DIR:-/tmp}/serpantinum.sock"
+export IPC_SOCKET="${XDG_RUNTIME_DIR:-/tmp}/larpantinum.sock"
 
-export QS_CACHE_DIR="$HOME/.cache/serpantinum"
-export QS_STATE_DIR="$HOME/.local/state/serpantinum"
-export QS_RUN_DIR="${XDG_RUNTIME_DIR:-/tmp}/serpantinum"
+export QS_CACHE_DIR="$HOME/.cache/larpantinum"
+export QS_STATE_DIR="$HOME/.local/state/larpantinum"
+export QS_RUN_DIR="${XDG_RUNTIME_DIR:-/tmp}/larpantinum"
 export QS_LOG_DIR="$QS_RUN_DIR/logs"
-export QS_SETTINGS="$HOME/.config/serpantinum/settings.json"
+export QS_SETTINGS="$HOME/.config/larpantinum/settings.json"
 
 [[ -d "$QS_LOG_DIR" && -d "$QS_CACHE_DIR" && -d "$QS_STATE_DIR" ]] || mkdir -p "$QS_CACHE_DIR" "$QS_STATE_DIR" "$QS_RUN_DIR" "$QS_LOG_DIR"
 

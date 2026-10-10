@@ -62,7 +62,7 @@ Item {
                 }
             }
         }
-        Quickshell.execDetached(["serpantinum", "ipc", "call", "main", "clearNotifications"]);
+        Quickshell.execDetached(["larpantinum", "ipc", "call", "main", "clearNotifications"]);
     }
 
     Timer {

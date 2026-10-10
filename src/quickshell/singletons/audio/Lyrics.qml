@@ -898,7 +898,7 @@ Item {
         command: [
             "bash",
             "-c",
-            'CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/serpantinum/lyrics"; HASH=$(echo -n "$1" | md5sum | cut -d" " -f1); FILE="$CACHE_DIR/${HASH}.json"; if [ -f "$FILE" ] && [ -s "$FILE" ]; then cat "$FILE"; fi',
+            'CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/larpantinum/lyrics"; HASH=$(echo -n "$1" | md5sum | cut -d" " -f1); FILE="$CACHE_DIR/${HASH}.json"; if [ -f "$FILE" ] && [ -s "$FILE" ]; then cat "$FILE"; fi',
             "--",
             targetKey
         ]
@@ -933,7 +933,7 @@ Item {
         command: [
             "bash",
             "-c",
-            'CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/serpantinum/lyrics"; mkdir -p "$CACHE_DIR"; HASH=$(echo -n "$1" | md5sum | cut -d" " -f1); printf "%s" "$2" > "$CACHE_DIR/${HASH}.json"',
+            'CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/larpantinum/lyrics"; mkdir -p "$CACHE_DIR"; HASH=$(echo -n "$1" | md5sum | cut -d" " -f1); printf "%s" "$2" > "$CACHE_DIR/${HASH}.json"',
             "--",
             pendingKey,
             pendingData

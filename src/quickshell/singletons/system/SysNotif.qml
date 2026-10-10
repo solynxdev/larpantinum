@@ -12,7 +12,7 @@ Item {
     readonly property int batteryPercentage: UPower.displayDevice.ready ? Math.round(UPower.displayDevice.percentage * 100) : 0
     readonly property bool isCharging: UPower.displayDevice.ready && (UPower.displayDevice.state === UPowerDeviceState.Charging || UPower.displayDevice.state === UPowerDeviceState.FullyCharged)
     readonly property string stateFilePath: {
-        let base = (typeof Caching !== "undefined" && Caching.runDir) ? Caching.runDir : "/tmp/serpantinum";
+        let base = (typeof Caching !== "undefined" && Caching.runDir) ? Caching.runDir : "/tmp/larpantinum";
         return base + "/battery_notif_state.json";
     }
 
@@ -63,7 +63,7 @@ Item {
             "lastNotifTime": root.lastNotifTime,
             "lastNotifType": root.lastNotifType
         });
-        let dir = (typeof Caching !== "undefined" && Caching.runDir) ? Caching.runDir : "/tmp/serpantinum";
+        let dir = (typeof Caching !== "undefined" && Caching.runDir) ? Caching.runDir : "/tmp/larpantinum";
         Quickshell.execDetached(["bash", "-c", 'mkdir -p "$1" && printf "%s\\n" "$2" > "$3"', "_", dir, payload, root.stateFilePath]);
     }
 

@@ -379,7 +379,7 @@ Item {
 
     FileView {
         id: matugenColorsWatcher
-        path: (typeof Caching !== "undefined" && Caching.stateDir ? Caching.stateDir : ((Quickshell.env("HOME") ?? "") + "/.local/state/serpantinum")) + "/qs_matugen_colors.json"
+        path: (typeof Caching !== "undefined" && Caching.stateDir ? Caching.stateDir : ((Quickshell.env("HOME") ?? "") + "/.local/state/larpantinum")) + "/qs_matugen_colors.json"
         watchChanges: true
         onFileChanged: reload()
         onLoaded: {
@@ -400,7 +400,7 @@ Item {
         running: false
         command: {
             let assetsPath = Caching.serpantinumDir ? (Caching.serpantinumDir + "/assets/themes") : "";
-            let userPath = Caching.stateDir ? (Caching.stateDir + "/themes") : (Caching.home + "/.local/state/serpantinum/themes");
+            let userPath = Caching.stateDir ? (Caching.stateDir + "/themes") : (Caching.home + "/.local/state/larpantinum/themes");
             let cachePath = Caching.getCacheDir("themes") + "/theme_sort_cache.json";
             let scriptPath = Caching.qsDir ? (Caching.qsDir + "/guide/theme/theme_sorter.py") : "theme_sorter.py";
             return ["python3", scriptPath, assetsPath, userPath, cachePath];
@@ -449,7 +449,7 @@ Item {
     }
 
     function saveCustomTheme(themeObj) {
-        let userPath = Caching.stateDir ? (Caching.stateDir + "/themes") : (Caching.home + "/.local/state/serpantinum/themes");
+        let userPath = Caching.stateDir ? (Caching.stateDir + "/themes") : (Caching.home + "/.local/state/larpantinum/themes");
         let sanitizeName = themeObj.name.replace(/[^a-zA-Z0-9_\- ]/g, "").trim();
         if (sanitizeName === "") sanitizeName = "CustomTheme";
         themeObj.name = sanitizeName;
@@ -467,7 +467,7 @@ Item {
     }
 
     function deleteCustomTheme(themeName) {
-        let userPath = Caching.stateDir ? (Caching.stateDir + "/themes") : (Caching.home + "/.local/state/serpantinum/themes");
+        let userPath = Caching.stateDir ? (Caching.stateDir + "/themes") : (Caching.home + "/.local/state/larpantinum/themes");
         let sanitizeName = themeName.replace(/[^a-zA-Z0-9_\- ]/g, "").trim();
         let filePath = userPath + "/" + sanitizeName + ".json";
         let escapeBash = function(str) { return String(str).replace(/(["\\$`])/g, '\\$1'); };
@@ -860,7 +860,7 @@ Item {
             return;
         }
 
-        let userFontsPath = Caching.stateDir ? (Caching.stateDir + "/fonts") : (Caching.home + "/.local/state/serpantinum/fonts");
+        let userFontsPath = Caching.stateDir ? (Caching.stateDir + "/fonts") : (Caching.home + "/.local/state/larpantinum/fonts");
         let escapeBash = function(str) { return String(str).replace(/(["\\$`])/g, '\\$1'); };
 
         let script = 
@@ -1294,7 +1294,7 @@ Item {
                     accentColor: ThemeBackend.surface0
                     textColor: isHoveredOrHighlighted ? ThemeBackend.text : ThemeBackend.overlay2
                     onClicked: {
-                        let userFontsPath = Caching.stateDir ? (Caching.stateDir + "/fonts") : (Caching.home + "/.local/state/serpantinum/fonts");
+                        let userFontsPath = Caching.stateDir ? (Caching.stateDir + "/fonts") : (Caching.home + "/.local/state/larpantinum/fonts");
                         let escapeBash = function(str) { return String(str).replace(/(["\\$`])/g, '\\$1'); };
                         Quickshell.execDetached(["bash", "-c", "mkdir -p \"" + escapeBash(userFontsPath) + "\" && xdg-open \"" + escapeBash(userFontsPath) + "\""]);
                     }

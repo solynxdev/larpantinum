@@ -6,7 +6,7 @@ SERPANTINUM_DIR="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/caching.sh" 2>/dev/null || true
 source "$SCRIPT_DIR/config.sh" 2>/dev/null || true
 
-STATE_DIR="${QS_STATE_DIR:-$HOME/.local/state/serpantinum}"
+STATE_DIR="${QS_STATE_DIR:-$HOME/.local/state/larpantinum}"
 FLAG_FILE="$STATE_DIR/first_launch.done"
 
 check_status() {
