@@ -306,13 +306,13 @@ PanelWindow {
 
     function lockScreen() {
         DesktopMenuController.hide();
-        let dir = (typeof Caching !== "undefined" && Caching.larpantinumDir) ? Caching.larpantinumDir : "";
+        let dir = (typeof Caching !== "undefined" && Caching.serpantinumDir) ? Caching.serpantinumDir : "";
         let scriptPath = dir ? (dir + "/scripts/lock.sh") : "lock.sh";
         Quickshell.execDetached(["bash", scriptPath]);
     }
 
     function reloadShell() {
-        let dir = (typeof Caching !== "undefined" && Caching.larpantinumDir) ? Caching.larpantinumDir : "";
+        let dir = (typeof Caching !== "undefined" && Caching.serpantinumDir) ? Caching.serpantinumDir : "";
         let cmd = (dir ? "if [ -f '" + dir + "/scripts/reload.sh' ]; then bash '" + dir + "/scripts/reload.sh'; else " : "")
             + "if command -v larpantinum >/dev/null 2>&1; then larpantinum reload; elif command -v qs_manager.sh >/dev/null 2>&1; then qs_manager.sh reload; else pkill -USR1 quickshell || pkill -HUP quickshell; fi"
             + (dir ? "; fi" : "");
@@ -323,7 +323,7 @@ PanelWindow {
         DesktopMenuController.hide();
         let targetId = selectedWidgetId !== undefined ? String(selectedWidgetId) : "";
         let mon = (desktopMenuWindow.screen && desktopMenuWindow.screen.name) ? desktopMenuWindow.screen.name : ((DesktopMenuController.screen && DesktopMenuController.screen.name) ? DesktopMenuController.screen.name : "");
-        let dir = (typeof Caching !== "undefined" && Caching.larpantinumDir) ? Caching.larpantinumDir : "";
+        let dir = (typeof Caching !== "undefined" && Caching.serpantinumDir) ? Caching.serpantinumDir : "";
         let scriptPath = dir ? (dir + "/scripts/redactor.sh") : "redactor.sh";
         Quickshell.execDetached(["bash", scriptPath, mon, targetId]);
     }
@@ -331,7 +331,7 @@ PanelWindow {
     function openGuide(tab) {
         DesktopMenuController.hide();
         let targetTab = tab !== undefined ? String(tab).trim() : "";
-        let dir = (typeof Caching !== "undefined" && Caching.larpantinumDir) ? Caching.larpantinumDir : "";
+        let dir = (typeof Caching !== "undefined" && Caching.serpantinumDir) ? Caching.serpantinumDir : "";
         let args = "toggle guide" + (targetTab ? (" " + targetTab) : "");
         let cmd = (dir ? ("if [ -f '" + dir + "/scripts/qs_manager.sh' ]; then bash '" + dir + "/scripts/qs_manager.sh' " + args + "; else ") : "")
             + "if command -v larpantinum >/dev/null 2>&1; then larpantinum " + args + "; elif command -v qs_manager.sh >/dev/null 2>&1; then qs_manager. " + args + "; fi"
@@ -609,7 +609,7 @@ PanelWindow {
                             textColor: ThemeBackend.text
                             onClicked: {
                                 DesktopMenuController.hide();
-                                let dir = (typeof Caching !== "undefined" && Caching.larpantinumDir) ? Caching.larpantinumDir : "";
+                                let dir = (typeof Caching !== "undefined" && Caching.serpantinumDir) ? Caching.serpantinumDir : "";
                                 if (dir) {
                                     Quickshell.execDetached(["bash", "-c", dir + "/scripts/qs_manager.sh toggle wallpaper"]);
                                 } else {
