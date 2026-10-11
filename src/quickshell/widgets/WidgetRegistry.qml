@@ -483,6 +483,17 @@ QtObject {
             variants: {
                 "default": { file: "faces/github/GithubFace.qml", icon: "1", label: typeof I18n !== "undefined" ? I18n.t("widgets.variants.default", "Default") : "Default" }
             }
+        },
+        "fetch": {
+            name: typeof I18n !== "undefined" ? I18n.t("widgets.types.fetch", "Fetch") : "Fetch",
+            icon: String.fromCodePoint(0xF19E8),
+            iconOffsetX: 0,
+            defaultWidth: 620,
+            defaultHeight: 360,
+            defaultVariant: "default",
+            variants: {
+                "default": { file: "faces/fetch/FetchFace.qml", icon: "1", label: typeof I18n !== "undefined" ? I18n.t("widgets.variants.default", "Default") : "Default" }
+            }
         }
     })
 

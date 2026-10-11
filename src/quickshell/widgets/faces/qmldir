@@ -1,4 +1,5 @@
 BatteryFace 1.0 battery/BatteryFace.qml
+FetchFace 1.0 fetch/FetchFace.qml
 ClockFaceAnalog 1.0 clock/ClockFaceAnalog.qml
 ClockFaceDigital 1.0 clock/ClockFaceDigital.qml
 ClockFaceMaterial 1.0 clock/ClockFaceMaterial.qml

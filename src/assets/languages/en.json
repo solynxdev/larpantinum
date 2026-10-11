@@ -1259,7 +1259,8 @@
       "usage": "Usage",
       "battery": "Battery",
       "github": "Github",
-      "time": "Time"
+      "time": "Time",
+      "fetch": "Fetch"
     },
     "variants": {
       "digital": "Digital",
