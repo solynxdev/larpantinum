@@ -66,6 +66,13 @@ function getWidgetLauncherEntries(i18n) {
             description: tr("widgets.system.desc", "Performance monitor, power, and quick settings"),
             icon: "preferences-system",
             fontIcon: "󰒓"
+        },
+        {
+            id: "fetch",
+            name: tr("widgets.fetch.name", "System Fetch"),
+            description: tr("widgets.fetch.desc", "System information, fastfetch-style"),
+            icon: "utilities-system-monitor",
+            fontIcon: "󰧨"
         }
     ];
 }
@@ -154,6 +161,15 @@ function getLayout(name, mx, my, mw, mh, userScale, barPosition) {
                 "bottom": { anchor: "hidden" }, 
                 "left": { anchor: "hidden" }, 
                 "right": { anchor: "hidden" } 
+            } 
+        },
+        "fetch": { 
+            w: 760, h: 500, comp: "fetch/Fetch.qml", 
+            pos: { 
+                "top": { anchor: "center" }, 
+                "bottom": { anchor: "center" }, 
+                "left": { anchor: "center" }, 
+                "right": { anchor: "center" } 
             } 
         }
     };

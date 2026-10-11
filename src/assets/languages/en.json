@@ -1223,6 +1223,24 @@
       "name": "System controls",
       "desc": "Performance monitor, power, and quick settings"
     },
+    "fetch": {
+      "name": "System fetch",
+      "desc": "System information, fastfetch-style",
+      "os": "OS",
+      "kernel": "Kernel",
+      "uptime": "Uptime",
+      "packages": "Packages",
+      "shell": "Shell",
+      "de": "Desktop",
+      "wm": "Window manager",
+      "cpu": "CPU",
+      "gpu": "GPU",
+      "memory": "Memory",
+      "disk": "Disk",
+      "resolution": "Resolution",
+      "theme": "Theme",
+      "unknown": "Unknown"
+    },
     "redactor": {
       "no_widgets_active": "No widgets active",
       "click_to_add": "Click a widget icon in the bottom toolbar to add it",
