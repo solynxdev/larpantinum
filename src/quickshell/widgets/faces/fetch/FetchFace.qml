@@ -20,6 +20,27 @@ Item {
         return Scaler.s(val);
     }
 
+    // ---- material tonal colors (same resolution as the analog clock) ----
+    function resolveColor(token, fallback) {
+        if (ThemeBackend.matugenColors) {
+            var val = ThemeBackend.matugenColors[token];
+            if (val) {
+                if (typeof val === "string") return Qt.color(val);
+                if (typeof val === "object") {
+                    if (val.hex) return Qt.color(val.hex);
+                    if (val.color) return Qt.color(val.color);
+                    if (val.default && val.default.hex) return Qt.color(val.default.hex);
+                }
+            }
+        }
+        return fallback;
+    }
+
+    readonly property color cardColor: resolveColor("primary_container", ThemeBackend.surface0)
+    readonly property color primaryColor: resolveColor("primary", ThemeBackend.mauve)
+    readonly property color secondaryColor: resolveColor("secondary", ThemeBackend.peach)
+    readonly property color tertiaryColor: resolveColor("tertiary", ThemeBackend.teal)
+
     // ---- snapshot data -------------------------------------------------
     property var systemRows: []
     property var hwRows: []
@@ -191,97 +212,137 @@ Item {
         }
     }
 
-    // ---- card ----
-    Rectangle {
+    // ---- organic material blob (analog-clock dial language) ----
+    Canvas {
+        id: blobCanvas
         anchors.fill: parent
-        color: ThemeBackend.surface0
-        radius: ThemeBackend.clampedBorderRadius
-        clip: true
+        antialiasing: true
+        visible: true
 
+        property int lobes: 10
+        property real exponent: 2.75
+        property real ampRatio: 0.014
+        property color fillColor: root.cardColor
+
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+        onFillColorChanged: requestPaint()
+
+        onPaint: {
+            const ctx = getContext("2d");
+            ctx.reset();
+            const w = width, h = height;
+            const cx = w / 2, cy = h / 2;
+            const rx = Math.max(1, w / 2 - 1);
+            const ry = Math.max(1, h / 2 - 1);
+            const amp = Math.min(w, h) * blobCanvas.ampRatio;
+            const n = blobCanvas.exponent;
+            const steps = 420;
+            ctx.beginPath();
+            for (let i = 0; i <= steps; i++) {
+                const a = (i / steps) * Math.PI * 2;
+                const ca = Math.cos(a), sa = Math.sin(a);
+                const denom = Math.pow(Math.pow(Math.abs(sa) / rx, n) + Math.pow(Math.abs(ca) / ry, n), 1 / n);
+                const R = 1 / Math.max(denom, 0.0001);
+                const r = R + amp * Math.cos(lobes * a);
+                const x = cx + r * sa;
+                const y = cy - r * ca;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.fillStyle = fillColor;
+            ctx.fill();
+        }
+    }
+
+    // ---- content (safely inside the blob) ----
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.leftMargin: root.width * 0.10
+        anchors.rightMargin: root.width * 0.10
+        anchors.topMargin: root.height * 0.09
+        anchors.bottomMargin: root.height * 0.11
+        spacing: 0
+
+        // ---- brand header (analog-material tones) ----
         ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: root.s(16)
-            spacing: 0
+            Layout.alignment: Qt.AlignHCenter
+            spacing: root.s(5)
 
-            // ---- brand header (lock-like) ----
-            ColumnLayout {
+            ImageBox {
                 Layout.alignment: Qt.AlignHCenter
-                spacing: root.s(5)
-
-                ImageBox {
-                    Layout.alignment: Qt.AlignHCenter
-                    Layout.preferredWidth: root.s(44)
-                    Layout.preferredHeight: root.s(44)
-                    size: root.s(44)
-                    cornerRadius: Math.min(ThemeBackend.borderRadius, root.s(12))
-                    imageRadius: Math.min(ThemeBackend.borderRadius, root.s(12))
-                    source: typeof SystemInfo !== "undefined" && SystemInfo.avatarPath !== "" ? ("file://" + SystemInfo.avatarPath) : ""
-                    backgroundColor: typeof SystemInfo === "undefined" || SystemInfo.avatarPath === "" ? ThemeBackend.surface1 : "transparent"
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: ""
-                        font.family: ThemeBackend.iconFont
-                        font.pixelSize: root.s(20)
-                        color: ThemeBackend.text
-                        visible: typeof SystemInfo === "undefined" || SystemInfo.avatarPath === ""
-                    }
-                }
+                Layout.preferredWidth: root.s(44)
+                Layout.preferredHeight: root.s(44)
+                size: root.s(44)
+                cornerRadius: Math.min(ThemeBackend.borderRadius, root.s(12))
+                imageRadius: Math.min(ThemeBackend.borderRadius, root.s(12))
+                source: typeof SystemInfo !== "undefined" && SystemInfo.avatarPath !== "" ? ("file://" + SystemInfo.avatarPath) : ""
+                backgroundColor: typeof SystemInfo === "undefined" || SystemInfo.avatarPath === ""
+                    ? Qt.alpha(root.secondaryColor, 0.22) : "transparent"
 
                 Text {
-                    Layout.alignment: Qt.AlignHCenter
-                    text: "larpantinum"
-                    font.family: ThemeBackend.fontFamily
-                    font.weight: Font.Black
-                    font.pixelSize: root.s(18)
-                    color: ThemeBackend.text
-                }
-
-                Text {
-                    Layout.alignment: Qt.AlignHCenter
-                    text: (typeof SystemInfo !== "undefined" && SystemInfo.username !== "" ? SystemInfo.username : "user")
-                        + "@" + (typeof SystemInfo !== "undefined" && SystemInfo.hostname !== "" ? SystemInfo.hostname : "host")
-                        + "   ·   " + (typeof SystemInfo !== "undefined" && SystemInfo.osName !== "" ? SystemInfo.osName : (typeof I18n !== "undefined" ? I18n.t("widgets.fetch.unknown") : "Unknown"))
-                    font.family: ThemeBackend.fontFamily
-                    font.pixelSize: root.s(11)
-                    color: ThemeBackend.subtext0
-                    elide: Text.ElideRight
-                    Layout.maximumWidth: parent.width
+                    anchors.centerIn: parent
+                    text: ""
+                    font.family: ThemeBackend.iconFont
+                    font.pixelSize: root.s(20)
+                    color: root.secondaryColor
+                    visible: typeof SystemInfo === "undefined" || SystemInfo.avatarPath === ""
                 }
             }
 
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.topMargin: root.s(14)
-                Layout.bottomMargin: root.s(12)
-                height: 1
-                color: Qt.alpha(ThemeBackend.surface1, 0.75)
+            Text {
+                Layout.alignment: Qt.AlignHCenter
+                text: "larpantinum"
+                font.family: ThemeBackend.fontFamily
+                font.weight: Font.Black
+                font.pixelSize: root.s(18)
+                color: root.primaryColor
             }
 
-            // ---- info rows (fastfetch-style, two columns) ----
-            RowLayout {
+            Text {
+                Layout.alignment: Qt.AlignHCenter
+                text: (typeof SystemInfo !== "undefined" && SystemInfo.username !== "" ? SystemInfo.username : "user")
+                    + "@" + (typeof SystemInfo !== "undefined" && SystemInfo.hostname !== "" ? SystemInfo.hostname : "host")
+                    + "   ·   " + (typeof SystemInfo !== "undefined" && SystemInfo.osName !== "" ? SystemInfo.osName : (typeof I18n !== "undefined" ? I18n.t("widgets.fetch.unknown") : "Unknown"))
+                font.family: ThemeBackend.fontFamily
+                font.pixelSize: root.s(11)
+                color: ThemeBackend.subtext0
+                elide: Text.ElideRight
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.topMargin: root.s(14)
+            Layout.bottomMargin: root.s(12)
+            height: 1
+            color: Qt.alpha(root.primaryColor, 0.28)
+        }
+
+        // ---- info rows (fastfetch-style, two columns) ----
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: root.s(22)
+
+            ColumnLayout {
                 Layout.fillWidth: true
-                Layout.fillHeight: true
-                spacing: root.s(24)
+                spacing: 0
 
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 0
-
-                    Repeater {
-                        model: root.systemRows
-                        delegate: InfoRow {}
-                    }
+                Repeater {
+                    model: root.systemRows
+                    delegate: InfoRow {}
                 }
+            }
 
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 0
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 0
 
-                    Repeater {
-                        model: root.hwRows
-                        delegate: InfoRow {}
-                    }
+                Repeater {
+                    model: root.hwRows
+                    delegate: InfoRow {}
                 }
             }
         }
@@ -298,7 +359,15 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            spacing: root.s(10)
+            spacing: root.s(8)
+
+            Rectangle {
+                id: infoDot
+                width: root.s(4)
+                height: root.s(4)
+                radius: width / 2
+                color: Qt.alpha(root.tertiaryColor, 0.75)
+            }
 
             Text {
                 id: infoLabel
@@ -306,7 +375,7 @@ Item {
                 font.family: ThemeBackend.fontFamily
                 font.pixelSize: root.s(12)
                 color: ThemeBackend.subtext0
-                Layout.preferredWidth: root.s(84)
+                Layout.preferredWidth: root.s(78)
                 elide: Text.ElideRight
             }
 
@@ -326,7 +395,7 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             height: 1
-            color: Qt.alpha(ThemeBackend.surface1, 0.75)
+            color: Qt.alpha(root.tertiaryColor, 0.20)
             visible: index > 0
         }
     }
