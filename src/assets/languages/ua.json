@@ -1,7 +1,7 @@
 {
   "guide": {
     "about": {
-      "title": "Serpantinum",
+      "title": "Larpantinum",
       "loading": "Завантаження...",
       "unknown": "Невідомо",
       "version_by": "v{version} • від {author}",
@@ -21,7 +21,7 @@
         "uptime": "Час роботи",
         "default_os": "Linux"
       },
-      "github_repo": "ArseniiTkachuk/Serpantinum-UA"
+      "github_repo": "solynxdev/larpantinum"
     },
     "tabs": {
       "welcome": "Ласкаво просимо",

@@ -39,7 +39,88 @@ Item {
     readonly property color cardColor: resolveColor("primary_container", ThemeBackend.surface0)
     readonly property color primaryColor: resolveColor("primary", ThemeBackend.mauve)
     readonly property color secondaryColor: resolveColor("secondary", ThemeBackend.peach)
-    readonly property color tertiaryColor: resolveColor("tertiary", ThemeBackend.teal)
+    // the analog's indicatorColor: tertiary with a secondary fallback, so the
+    // accents land on the same periwinkle the clock's indicator uses
+    readonly property color tertiaryColor: resolveColor("tertiary", resolveColor("secondary", ThemeBackend.peach))
+
+    // ---- distro identity (logo + brand colour, fastfetch-style) ----
+    property string osId: ""
+
+    function distroId() {
+        return root.osId.toLowerCase();
+    }
+
+    function brandColor() {
+        switch (root.distroId()) {
+            case "arch": return "#1793d1";
+            case "fedora": return "#51a2da";
+            case "ubuntu": return "#e95420";
+            case "debian": return "#d70a53";
+            case "nixos": return "#7ebae4";
+            case "linuxmint": return "#86be43";
+            case "manjaro": return "#35bf5c";
+            case "opensuse*": case "opensuse-tumbleweed": case "opensuse-leap": return "#73ba25";
+            default: return root.primaryColor;
+        }
+    }
+
+    // fastfetch-style small logo art, drawn in the distro's brand colour.
+    // Backslashes are doubled so the source stays valid QML and ASCII-clean.
+    // fastfetch-style small logo art, drawn in the distro's brand colour.
+    // Backslashes are doubled so the source stays valid QML and ASCII-clean.
+    // fastfetch-style small logo art, drawn in the distro's brand colour.
+    // One array element per line; backslashes doubled so the source stays
+    // valid QML and free of non-ASCII bytes.
+    function logoLines() {
+        switch (root.distroId()) {
+            case "arch":
+                return ["        /\\       ",
+                        "       /  \\      ",
+                        "      /    \\     ",
+                        "     /      \\    ",
+                        "    /   ,,   \\   ",
+                        "   /   |  |   \\  ",
+                        "  /_-''    ''-\\_ "];
+            case "fedora":
+                return ["      _____       ",
+                        "     /   __)\\     ",
+                        "     |  /  \\ \\    ",
+                        "  ___|  |__/ /    ",
+                        " / (_    _)_/     ",
+                        "/ /  |  |         ",
+                        "\\ \\__/  |         ",
+                        " \\(___/"];
+            case "ubuntu":
+                return ["         _         ",
+                        "     ---(_)        ",
+                        " _/  ---  \\       ",
+                        "(_) |   |          ",
+                        "  \\  --- _/        ",
+                        "     ---(_)        "];
+            case "debian":
+                return ["      _____       ",
+                        "     /  __ \\      ",
+                        "     | /  \\/      ",
+                        "     | /\\__/\\      ",
+                        "     |\\___/\\      ",
+                        "    |/     \\     ",
+                        "     \\_____  \\    ",
+                        "           \\(__) "];
+            case "nixos":
+                return ["        /\\  \\     ",
+                        "       /  \\  \\    ",
+                        "      / /\\ \\  \\   ",
+                        "     / /  \\ \\  \\  ",
+                        "    / /____\\ \\  \\ ",
+                        "   /__________\\  \\ ",
+                        "   \\__________/   "];
+            default: return [];
+        }
+    }
+
+    function hasLogo() {
+        return root.logoLines().length > 0;
+    }
 
     // ---- snapshot data -------------------------------------------------
     property var systemRows: []
@@ -57,6 +138,7 @@ Item {
         if (typeof SystemInfo !== "undefined") {
             SystemInfo.fetch();
         }
+        osReleaseFile.reload();
         infoProc.running = false;
         infoProc.running = true;
         root.rebuildRows();
@@ -65,27 +147,39 @@ Item {
 
     function rebuildRows() {
         let unk = typeof I18n !== "undefined" ? I18n.t("widgets.fetch.unknown", "Unknown") : "Unknown";
+        let os = (typeof SystemInfo !== "undefined" && SystemInfo.osName !== "" ? SystemInfo.osName : unk);
         root.systemRows = [
-            mkRow("widgets.fetch.os", (typeof SystemInfo !== "undefined" && SystemInfo.osName !== "" ? SystemInfo.osName : unk) + " " + root.arch),
-            mkRow("widgets.fetch.kernel", typeof SystemInfo !== "undefined" && SystemInfo.kernelVersion !== "" ? SystemInfo.kernelVersion : unk),
-            mkRow("widgets.fetch.uptime", typeof SystemInfo !== "undefined" && SystemInfo.uptime !== "" ? SystemInfo.uptime : unk),
-            mkRow("widgets.fetch.packages", root.pkgCount + (root.pkgManager !== "" ? " (" + root.pkgManager + ")" : "")),
-            mkRow("widgets.fetch.shell", root.shellName()),
-            mkRow("widgets.fetch.de", typeof SystemInfo !== "undefined" && SystemInfo.desktopEnv !== "" ? SystemInfo.desktopEnv : unk),
-            mkRow("widgets.fetch.wm", root.wmLabel())
+            mkRow("os", "widgets.fetch.os", os + " " + root.arch),
+            mkRow("host", "widgets.fetch.host", root.hostLabel()),
+            mkRow("kernel", "widgets.fetch.kernel", typeof SystemInfo !== "undefined" && SystemInfo.kernelVersion !== "" ? SystemInfo.kernelVersion : unk),
+            mkRow("uptime", "widgets.fetch.uptime", typeof SystemInfo !== "undefined" && SystemInfo.uptime !== "" ? SystemInfo.uptime : unk),
+            mkRow("pkg", "widgets.fetch.packages", root.pkgCount + (root.pkgManager !== "" ? " (" + root.pkgManager + ")" : "")),
+            mkRow("shell", "widgets.fetch.shell", root.shellName()),
+            mkRow("de", "widgets.fetch.de", typeof SystemInfo !== "undefined" && SystemInfo.desktopEnv !== "" ? SystemInfo.desktopEnv : unk),
+            mkRow("wm", "widgets.fetch.wm", root.wmLabel())
         ];
         root.hwRows = [
-            mkRow("widgets.fetch.cpu", root.cpuLabel()),
-            mkRow("widgets.fetch.gpu", root.gpuValue()),
-            mkRow("widgets.fetch.memory", root.memoryLabel()),
-            mkRow("widgets.fetch.disk", root.diskLabel()),
-            mkRow("widgets.fetch.resolution", root.resolutionLabel()),
-            mkRow("widgets.fetch.theme", root.themeLabel())
+            mkRow("cpu", "widgets.fetch.cpu", root.cpuLabel()),
+            mkRow("gpu", "widgets.fetch.gpu", root.gpuValue()),
+            mkRow("mem", "widgets.fetch.memory", root.memoryLabel()),
+            mkRow("disk", "widgets.fetch.disk", root.diskLabel()),
+            mkRow("res", "widgets.fetch.resolution", root.resolutionLabel()),
+            mkRow("theme", "widgets.fetch.theme", root.themeLabel())
         ];
     }
 
-    function mkRow(key, value) {
-        return { label: typeof I18n !== "undefined" ? I18n.t(key) : key, value: value };
+    function mkRow(icon, key, value) {
+        return {
+            icon: icon,
+            label: typeof I18n !== "undefined" ? I18n.t(key) : key,
+            value: value
+        };
+    }
+
+    function hostLabel() {
+        let u = typeof SystemInfo !== "undefined" && SystemInfo.username !== "" ? SystemInfo.username : "user";
+        let h = typeof SystemInfo !== "undefined" && SystemInfo.hostname !== "" ? SystemInfo.hostname : "host";
+        return u + "@" + h;
     }
 
     function shellName() {
@@ -153,6 +247,41 @@ Item {
         return "Matugen";
     }
 
+    // copy a row value to the clipboard, then flash the row's icon to a tick
+    function copyValue(value) {
+        copyProc.command = ["wl-copy", "--", value];
+        copyProc.running = false;
+        copyProc.running = true;
+    }
+
+    // nerd-font glyph per row key (Font Awesome range, same icon language
+    // the shell's menus already use)
+    // nerd-font glyph per row key (Font Awesome range, same icon language
+    // the shell's menus already use). Escaped so the source stays ASCII.
+    function glyphFor(key) {
+        switch (key) {
+            case "os": return "\uf17c";
+            case "host": return "\uf233";
+            case "kernel": return "\uf109";
+            case "uptime": return "\uf017";
+            case "pkg": return "\uf1b3";
+            case "shell": return "\uf120";
+            case "de": return "\uf108";
+            case "wm": return "\uf009";
+            case "cpu": return "\uf2db";
+            case "gpu": return "\uf2dc";
+            case "mem": return "\uf538";
+            case "disk": return "\uf0a0";
+            case "res": return "\uf5fd";
+            case "theme": return "\uf53f";
+            default:         return "\uf128";
+        }
+    }
+
+    function tickGlyph() {
+        return "\uf00c";
+    }
+
     Component.onCompleted: {
         root.refresh();
         refreshTimer.start();
@@ -170,6 +299,30 @@ Item {
         interval: 250
         repeat: false
         onTriggered: root.rebuildRows()
+    }
+
+    // /etc/os-release -> ID (drives which logo + brand colour we draw)
+    FileView {
+        id: osReleaseFile
+        path: "/etc/os-release"
+        onLoaded: {
+            let txt = text();
+            if (!txt) return;
+            let lines = txt.split("\n");
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].startsWith("ID=")) {
+                    root.osId = lines[i].split("=")[1].replace(/"/g, "").trim();
+                    break;
+                }
+            }
+            root.rebuildRows();
+        }
+    }
+
+    Process {
+        id: copyProc
+        running: false
+        command: ["wl-copy"]
     }
 
     Process {
@@ -212,134 +365,153 @@ Item {
         }
     }
 
-    // ---- organic material blob (analog-clock dial language) ----
+    // ---- card: rounded rectangle with a gently undulating outline ----
+    // (the redactor-selection silhouette, not a blob)
     Canvas {
-        id: blobCanvas
+        id: cardCanvas
         anchors.fill: parent
         antialiasing: true
-        visible: true
 
-        property int lobes: 10
-        property real exponent: 2.75
-        property real ampRatio: 0.014
+        property real corner: Math.min(ThemeBackend.borderRadius * 1.6, Math.min(width, height) * 0.20)
+        property real amp: Math.min(width, height) * 0.020
+        property int lobes: 14
         property color fillColor: root.cardColor
+        property color edgeColor: Qt.alpha(root.primaryColor, 0.26)
 
         onWidthChanged: requestPaint()
         onHeightChanged: requestPaint()
         onFillColorChanged: requestPaint()
+        onEdgeColorChanged: requestPaint()
+
+        // point + outward normal on a rounded rect, by arc-length fraction s
+        function edgePoint(s, pad, w, h, r, Lx, Ly, La, P) {
+            let d = s * P;
+            if (d < Lx) return [pad + r + d, pad, 0, -1];
+            d -= Lx;
+            if (d < La) { let a = -Math.PI / 2 + d / r; return [pad + w - r + r * Math.cos(a), pad + r + r * Math.sin(a), Math.cos(a), Math.sin(a)]; }
+            d -= La;
+            if (d < Ly) return [pad + w, pad + r + d, 1, 0];
+            d -= Ly;
+            if (d < La) { let a = d / r; return [pad + w - r + r * Math.cos(a), pad + h - r + r * Math.sin(a), Math.cos(a), Math.sin(a)]; }
+            d -= La;
+            if (d < Lx) return [pad + w - r - d, pad + h, 0, 1];
+            d -= Lx;
+            if (d < La) { let a = Math.PI / 2 + d / r; return [pad + r + r * Math.cos(a), pad + h - r + r * Math.sin(a), Math.cos(a), Math.sin(a)]; }
+            d -= La;
+            if (d < Ly) return [pad, pad + h - r - d, -1, 0];
+            d -= Ly;
+            let a = Math.PI + d / r;
+            return [pad + r + r * Math.cos(a), pad + r + r * Math.sin(a), Math.cos(a), Math.sin(a)];
+        }
 
         onPaint: {
             const ctx = getContext("2d");
             ctx.reset();
-            const w = width, h = height;
-            const cx = w / 2, cy = h / 2;
-            const rx = Math.max(1, w / 2 - 1);
-            const ry = Math.max(1, h / 2 - 1);
-            const amp = Math.min(w, h) * blobCanvas.ampRatio;
-            const n = blobCanvas.exponent;
-            const steps = 420;
+            const pad = cardCanvas.amp + 1;
+            const w = width - 2 * pad, h = height - 2 * pad;
+            if (w <= 4 || h <= 4) return;
+            const r = Math.min(cardCanvas.corner, Math.min(w, h) / 2);
+            const Lx = w - 2 * r, Ly = h - 2 * r, La = Math.PI * r / 2;
+            const P = 2 * Lx + 2 * Ly + 4 * La;
+            const lobes = cardCanvas.lobes, amp = cardCanvas.amp;
+            const steps = 480;
             ctx.beginPath();
             for (let i = 0; i <= steps; i++) {
-                const a = (i / steps) * Math.PI * 2;
-                const ca = Math.cos(a), sa = Math.sin(a);
-                const denom = Math.pow(Math.pow(Math.abs(sa) / rx, n) + Math.pow(Math.abs(ca) / ry, n), 1 / n);
-                const R = 1 / Math.max(denom, 0.0001);
-                const r = R + amp * Math.cos(lobes * a);
-                const x = cx + r * sa;
-                const y = cy - r * ca;
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
+                const sv = i / steps;
+                const p = cardCanvas.edgePoint(sv, pad, w, h, r, Lx, Ly, La, P);
+                const off = amp * Math.cos(lobes * 2 * Math.PI * sv);
+                const x = p[0] + p[2] * off, y = p[1] + p[3] * off;
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
             }
             ctx.closePath();
-            ctx.fillStyle = fillColor;
+            ctx.fillStyle = cardCanvas.fillColor;
             ctx.fill();
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = cardCanvas.edgeColor;
+            ctx.stroke();
         }
     }
 
-    // ---- content (safely inside the blob) ----
-    ColumnLayout {
+    // ---- content ----
+    RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: root.width * 0.10
-        anchors.rightMargin: root.width * 0.10
-        anchors.topMargin: root.height * 0.09
-        anchors.bottomMargin: root.height * 0.11
-        spacing: 0
+        anchors.leftMargin: root.width * 0.055
+        anchors.rightMargin: root.width * 0.055
+        anchors.topMargin: root.height * 0.07
+        anchors.bottomMargin: root.height * 0.07
+        spacing: root.width * 0.045
 
-        // ---- brand header (analog-material tones) ----
+        // ---- OS logo (fastfetch small-logo art, in the distro's brand colour) ----
+        Item {
+            visible: root.hasLogo()
+            Layout.preferredWidth: logoCol.implicitWidth
+            Layout.preferredHeight: logoCol.implicitHeight
+            Layout.alignment: Qt.AlignVCenter
+
+            Column {
+                id: logoCol
+                spacing: 0
+                Repeater {
+                    model: root.logoLines()
+                    delegate: Text {
+                        required property var modelData
+                        text: modelData
+                        font.family: "Iosevka Nerd Font"
+                        font.pixelSize: Math.max(root.s(9), Math.min(root.width, root.height) * 0.055)
+                        color: root.brandColor()
+                        lineHeight: 1.0
+                        renderType: Text.NativeRender
+                    }
+                }
+            }
+        }
+
+        // ---- info column ----
         ColumnLayout {
-            Layout.alignment: Qt.AlignHCenter
-            spacing: root.s(5)
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 0
 
-            ImageBox {
-                Layout.alignment: Qt.AlignHCenter
-                Layout.preferredWidth: root.s(44)
-                Layout.preferredHeight: root.s(44)
-                size: root.s(44)
-                cornerRadius: Math.min(ThemeBackend.borderRadius, root.s(12))
-                imageRadius: Math.min(ThemeBackend.borderRadius, root.s(12))
-                source: typeof SystemInfo !== "undefined" && SystemInfo.avatarPath !== "" ? ("file://" + SystemInfo.avatarPath) : ""
-                backgroundColor: typeof SystemInfo === "undefined" || SystemInfo.avatarPath === ""
-                    ? Qt.alpha(root.secondaryColor, 0.22) : "transparent"
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: root.s(8)
 
                 Text {
-                    anchors.centerIn: parent
-                    text: ""
-                    font.family: ThemeBackend.iconFont
-                    font.pixelSize: root.s(20)
-                    color: root.secondaryColor
-                    visible: typeof SystemInfo === "undefined" || SystemInfo.avatarPath === ""
+                    text: root.hostLabel()
+                    font.family: ThemeBackend.fontFamily
+                    font.weight: Font.Black
+                    font.pixelSize: root.s(15)
+                    color: root.primaryColor
+                    elide: Text.ElideRight
+                    Layout.fillWidth: true
+                }
+
+                Text {
+                    text: typeof SystemInfo !== "undefined" && SystemInfo.osName !== "" ? SystemInfo.osName : ""
+                    font.family: ThemeBackend.fontFamily
+                    font.pixelSize: root.s(11)
+                    color: ThemeBackend.subtext0
+                    elide: Text.ElideRight
                 }
             }
 
-            Text {
-                Layout.alignment: Qt.AlignHCenter
-                text: "larpantinum"
-                font.family: ThemeBackend.fontFamily
-                font.weight: Font.Black
-                font.pixelSize: root.s(18)
-                color: root.primaryColor
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.topMargin: root.s(7)
+                Layout.bottomMargin: root.s(6)
+                height: 1
+                color: Qt.alpha(root.primaryColor, 0.28)
             }
-
-            Text {
-                Layout.alignment: Qt.AlignHCenter
-                text: (typeof SystemInfo !== "undefined" && SystemInfo.username !== "" ? SystemInfo.username : "user")
-                    + "@" + (typeof SystemInfo !== "undefined" && SystemInfo.hostname !== "" ? SystemInfo.hostname : "host")
-                    + "   ·   " + (typeof SystemInfo !== "undefined" && SystemInfo.osName !== "" ? SystemInfo.osName : (typeof I18n !== "undefined" ? I18n.t("widgets.fetch.unknown") : "Unknown"))
-                font.family: ThemeBackend.fontFamily
-                font.pixelSize: root.s(11)
-                color: ThemeBackend.subtext0
-                elide: Text.ElideRight
-            }
-        }
-
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.topMargin: root.s(14)
-            Layout.bottomMargin: root.s(12)
-            height: 1
-            color: Qt.alpha(root.primaryColor, 0.28)
-        }
-
-        // ---- info rows (fastfetch-style, two columns) ----
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            spacing: root.s(22)
 
             ColumnLayout {
                 Layout.fillWidth: true
+                Layout.fillHeight: true
                 spacing: 0
 
                 Repeater {
                     model: root.systemRows
                     delegate: InfoRow {}
                 }
-            }
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 0
-
                 Repeater {
                     model: root.hwRows
                     delegate: InfoRow {}
@@ -349,11 +521,26 @@ Item {
     }
 
     component InfoRow: Item {
+        id: rowRoot
+
         required property var modelData
         required property int index
 
         Layout.fillWidth: true
-        implicitHeight: Math.max(infoLabel.implicitHeight, infoValue.implicitHeight) + root.s(7)
+        Layout.preferredHeight: s(24)
+
+        function s(v) { return root.s(v); }
+
+        property bool copied: false
+
+        Rectangle {
+            anchors.fill: parent
+            anchors.leftMargin: -root.s(6)
+            anchors.rightMargin: -root.s(6)
+            radius: ThemeBackend.borderRadius
+            color: rowMouse.containsMouse ? Qt.alpha(root.secondaryColor, 0.16) : "transparent"
+            Behavior on color { ColorAnimation { duration: 160 } }
+        }
 
         RowLayout {
             anchors.left: parent.left
@@ -361,27 +548,27 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: root.s(8)
 
-            Rectangle {
-                id: infoDot
-                width: root.s(4)
-                height: root.s(4)
-                radius: width / 2
-                color: Qt.alpha(root.tertiaryColor, 0.75)
+            Text {
+                text: rowRoot.copied ? root.tickGlyph() : root.glyphFor(rowRoot.modelData.icon)
+                font.family: "Iosevka Nerd Font"
+                font.pixelSize: root.s(13)
+                color: rowRoot.copied ? root.primaryColor : Qt.alpha(root.brandColor(), 0.95)
+                Layout.preferredWidth: root.s(16)
+                horizontalAlignment: Text.AlignHCenter
             }
 
             Text {
-                id: infoLabel
-                text: modelData.label.toUpperCase() + ":"
+                text: rowRoot.modelData.label
                 font.family: ThemeBackend.fontFamily
+                font.weight: Font.DemiBold
                 font.pixelSize: root.s(12)
                 color: ThemeBackend.subtext0
-                Layout.preferredWidth: root.s(78)
+                Layout.preferredWidth: root.s(74)
                 elide: Text.ElideRight
             }
 
             Text {
-                id: infoValue
-                text: modelData.value
+                text: rowRoot.modelData.value
                 font.family: ThemeBackend.fontFamily
                 font.pixelSize: root.s(12)
                 color: ThemeBackend.text
@@ -390,13 +577,22 @@ Item {
             }
         }
 
-        Rectangle {
-            anchors.top: parent.top
-            anchors.left: parent.left
-            anchors.right: parent.right
-            height: 1
-            color: Qt.alpha(root.tertiaryColor, 0.20)
-            visible: index > 0
+        MouseArea {
+            id: rowMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: {
+                root.copyValue(rowRoot.modelData.value);
+                rowRoot.copied = true;
+                copyFlash.restart();
+            }
+        }
+
+        Timer {
+            id: copyFlash
+            interval: 1200
+            onTriggered: rowRoot.copied = false
         }
     }
 }

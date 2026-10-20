@@ -240,6 +240,7 @@ Item {
         root.loading = true;
         cacheReadProcess.running = false;
         cacheReadProcess.targetKey = key;
+        cacheReadProcess.targetTitle = trackTitle.trim();
         cacheReadProcess.running = true;
     }
 
@@ -895,23 +896,40 @@ Item {
     Process {
         id: cacheReadProcess
         property string targetKey: ""
+        property string targetTitle: ""
+        // Lookup order: a title-named .lrc in ~/Music/Lyrics (user override, wins),
+        // then the md5 .json cache, then (in QML) the network. Output is tagged
+        // with a first line (LRC / JSON) so the handler knows how to parse it.
         command: [
             "bash",
             "-c",
-            'CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/larpantinum/lyrics"; HASH=$(echo -n "$1" | md5sum | cut -d" " -f1); FILE="$CACHE_DIR/${HASH}.json"; if [ -f "$FILE" ] && [ -s "$FILE" ]; then cat "$FILE"; fi',
+            'CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/larpantinum/lyrics"; HASH=$(echo -n "$1" | md5sum | cut -d" " -f1); if [ -n "$2" ] && [ -f "$HOME/Music/Lyrics/$2.lrc" ] && [ -s "$HOME/Music/Lyrics/$2.lrc" ]; then echo LRC; cat "$HOME/Music/Lyrics/$2.lrc"; exit 0; fi; FILE="$CACHE_DIR/${HASH}.json"; if [ -f "$FILE" ] && [ -s "$FILE" ]; then echo JSON; cat "$FILE"; fi',
             "--",
-            targetKey
+            targetKey,
+            targetTitle
         ]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
-                let content = this.text.trim();
+                let raw = this.text;
                 let key = cacheReadProcess.targetKey;
                 if (key !== root.currentTrackKey || key !== root.activeFetchKey) return;
 
-                if (content !== "") {
+                // bash tags the first line LRC / JSON so we know how to parse the rest
+                let nl = raw.indexOf("\n");
+                let tag = (nl >= 0 ? raw.substring(0, nl) : raw).trim();
+                let body = nl >= 0 ? raw.substring(nl + 1) : "";
+
+                if (tag === "LRC" && body.trim() !== "") {
+                    let parsed = parseWordLevelLyrics(body);
+                    if (!parsed || parsed.length === 0) parsed = parseLrc(body);
+                    if (parsed && parsed.length > 0) {
+                        root.applyLyrics(parsed, key, false);
+                        return;
+                    }
+                } else if (tag === "JSON" && body.trim() !== "") {
                     try {
-                        let parsed = JSON.parse(content);
+                        let parsed = JSON.parse(body);
                         if (Array.isArray(parsed) && parsed.length > 0) {
                             let mem = root.getMemCache();
                             if (mem) mem[key] = parsed;

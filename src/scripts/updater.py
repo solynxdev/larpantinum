@@ -5,7 +5,7 @@ import sys
 import time
 import urllib.request
 
-REPO = "ilyamiro/serpantinum"
+REPO = "solynxdev/larpantinum"
 DEFAULT_VER = "2.0.0"
 
 state_dir = os.path.expanduser("~/.local/state/larpantinum")

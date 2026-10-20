@@ -100,8 +100,10 @@ show_help() {
     echo "  start                       $(t "daemon.cli.cmd_start")"
     echo "  stop                        $(t "daemon.cli.cmd_stop")"
     echo "  status                      $(t "daemon.cli.cmd_status")"
+    echo "  log                         $(t "daemon.cli.cmd_log")"
     echo ""
     echo "$(t "daemon.cli.options")"
+    echo "  -d, --detach                $(t "daemon.cli.opt_detach")"
     echo "  -v, --verbose               $(t "daemon.cli.opt_verbose")"
     echo "  -V, --version               $(t "daemon.cli.opt_version")"
     echo "  -h, --help                  $(t "daemon.cli.opt_help")"
@@ -109,11 +111,16 @@ show_help() {
 }
 
 COMMAND=""
+DETACH=false
 while [ $# -gt 0 ]; do
     case "$1" in
         -v|--verbose)
             VERBOSE=true
             export SERPANTINUM_VERBOSE=true
+            shift
+            ;;
+        -d|--detach)
+            DETACH=true
             shift
             ;;
         -V|--version)
@@ -124,7 +131,7 @@ while [ $# -gt 0 ]; do
             show_help
             exit 0
             ;;
-        start|stop|status)
+        start|stop|status|log)
             if [ -z "$COMMAND" ]; then
                 COMMAND="$1"
             fi
@@ -140,6 +147,18 @@ done
 
 if [ -z "$COMMAND" ]; then
     COMMAND="start"
+fi
+
+DAEMON_LOG="${XDG_STATE_HOME:-$HOME/.local/state}/larpantinum/daemon.log"
+
+if [ "$COMMAND" == "log" ]; then
+    if [ -f "$DAEMON_LOG" ]; then
+        tail -n "${LARPANTINUM_LOG_LINES:-200}" -f "$DAEMON_LOG"
+    else
+        echo "$(t "daemon.cli.log_missing" FILE="$DAEMON_LOG")"
+        exit 1
+    fi
+    exit 0
 fi
 
 if [ "$COMMAND" == "stop" ]; then
@@ -187,6 +206,40 @@ if [ "$COMMAND" == "status" ]; then
 fi
 
 if [ "$COMMAND" == "start" ]; then
+    # Detached mode: re-exec ourselves in a fresh session so the shell keeps
+    # running after the terminal closes. The child takes the lock and writes
+    # the pid file; we wait for that so the caller gets a real exit status.
+    if [ "$DETACH" = true ] && [ -z "$LARPANTINUMD_DETACHED" ]; then
+        mkdir -p "$(dirname "$DAEMON_LOG")"
+
+        existing_pid=""
+        [ -f "/tmp/larpantinumd.pid" ] && existing_pid="$(cat "/tmp/larpantinumd.pid" 2>/dev/null)"
+        if [ -n "$existing_pid" ] && is_alive "$existing_pid"; then
+            echo "$(t "daemon.already_running")"
+            exit 0
+        fi
+
+        LARPANTINUMD_DETACHED=1 \
+        LARPANTINUM_VERBOSE="${SERPANTINUM_VERBOSE:-}" \
+        setsid -f "$0" start -d \
+            >> "$DAEMON_LOG" 2>&1 < /dev/null &
+
+        count=0
+        while [ "$count" -lt 60 ]; do
+            pid=""
+            [ -f "/tmp/larpantinumd.pid" ] && pid="$(cat "/tmp/larpantinumd.pid" 2>/dev/null)"
+            if [ -n "$pid" ] && is_alive "$pid"; then
+                echo "$(t "daemon.cli.detached" PID="$pid" LOG="$DAEMON_LOG")"
+                exit 0
+            fi
+            sleep 0.1
+            count=$((count + 1))
+        done
+
+        echo "$(t "daemon.cli.detach_failed" LOG="$DAEMON_LOG")"
+        exit 1
+    fi
+
     exec 9>"/tmp/larpantinumd.lock"
 
     if ! flock -n 9; then

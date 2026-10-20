@@ -1,7 +1,7 @@
 {
   "guide": {
     "about": {
-      "title": "Serpantinum",
+      "title": "Larpantinum",
       "loading": "Yüklənir...",
       "unknown": "Naməlum",
       "version_by": "v{version} • müəllif: {author}",
@@ -21,7 +21,7 @@
         "uptime": "İşləmə müddəti",
         "default_os": "Linux"
       },
-      "github_repo": "ilyamiro/serpantinum"
+      "github_repo": "solynxdev/larpantinum"
     },
     "tabs": {
       "welcome": "Xoş gəlmisiniz",

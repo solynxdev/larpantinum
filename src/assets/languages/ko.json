@@ -1,7 +1,7 @@
 {
   "guide": {
     "about": {
-      "title": "Serpantinum",
+      "title": "Larpantinum",
       "loading": "불러오는 중...",
       "unknown": "알 수 없음",
       "version_by": "v{version} • {author} 제작",
@@ -21,7 +21,7 @@
         "uptime": "가동 시간",
         "default_os": "Linux"
       },
-      "github_repo": "ilyamiro/serpantinum"
+      "github_repo": "solynxdev/larpantinum"
     },
     "tabs": {
       "welcome": "시작",

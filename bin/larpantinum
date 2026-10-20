@@ -142,6 +142,7 @@ show_launch_help() {
     echo "  widgetredactor  $(t "cli.launch_help.target_widgetredactor")"
     echo ""
     echo "$(t "cli.options")"
+    echo "  -d, --detach   $(t "cli.opt_detach")"
     echo "  -h, --help      $(t "cli.help_desc")"
     echo ""
 }
@@ -183,7 +184,9 @@ ensure_daemon() {
         rm -f "/tmp/larpantinumd.lock" 2>/dev/null
 
         [ "$VERBOSE" = true ] && echo "$(t "cli.starting_daemon")"
-        "$BIN_DIR/larpantinumd" start > /dev/null 2>&1 &
+        # -d makes larpantinumd re-exec under setsid, so the shell survives
+        # the calling terminal closing. It returns as soon as the pid file is up.
+        "$BIN_DIR/larpantinumd" start -d > /dev/null 2>&1 &
 
         local count=0
         while [ "$count" -lt 15 ]; do
@@ -281,7 +284,34 @@ if [[ "$1" == "launch" ]]; then
     esac
 
     shift 2
-    export SERPANTINUM_LAUNCH_ARGS="$*"
+
+    # `larpantinum launch start -d` mirrors `caelestia shell -d`: bring the
+    # daemon up fully detached, then return immediately (no foreground Runner).
+    DETACH=false
+    LAUNCH_ARGS=()
+    for a in "$@"; do
+        case "$a" in
+            -d|--detach)
+                DETACH=true
+                ;;
+            *)
+                LAUNCH_ARGS+=("$a")
+                ;;
+        esac
+    done
+    export SERPANTINUM_LAUNCH_ARGS="${LAUNCH_ARGS[*]}"
+
+    if [ "$DETACH" = true ]; then
+        ensure_daemon
+        pid=""
+        [ -f "/tmp/larpantinumd.pid" ] && pid="$(cat "/tmp/larpantinumd.pid" 2>/dev/null)"
+        if [ -n "$pid" ] && is_alive "$pid"; then
+            echo "$(t "cli.detached" PID="$pid")"
+            exit 0
+        fi
+        echo "$(t "cli.detach_failed")"
+        exit 1
+    fi
 
     QML_FILE=$(find "$SERPANTINUM_DIR/quickshell" -type f -name "${QML_NAME}.qml" 2>/dev/null | head -n 1)
 

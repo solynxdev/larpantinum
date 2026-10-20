@@ -1,7 +1,7 @@
 {
   "guide": {
     "about": {
-      "title": "Serpantinum",
+      "title": "Larpantinum",
       "loading": "Đang tải...",
       "unknown": "Không rõ",
       "version_by": "v{version} • bởi {author}",
@@ -21,7 +21,7 @@
         "uptime": "Thời gian hoạt động",
         "default_os": "Linux"
       },
-      "github_repo": "ilyamiro/serpantinum"
+      "github_repo": "solynxdev/larpantinum"
     },
     "tabs": {
       "welcome": "Chào mừng",
