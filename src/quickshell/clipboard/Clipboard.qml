@@ -131,6 +131,7 @@ PanelWindow {
     property string pendingQuery: ""
 
     function grabInputFocus() {
+        if (searchInput.hasFocus) return;
         searchInput.forceActiveFocus();
         if (typeof searchInput.forceInputFocus === "function") {
             searchInput.forceInputFocus();
@@ -150,7 +151,7 @@ PanelWindow {
     Process {
         id: clipWatcher
         running: true
-        command: ["wl-paste", "--watch", "echo", "1"]
+        command: ["sh", "-c", "wl-paste --watch echo 1 & w=$!; trap 'kill $w 2>/dev/null' EXIT TERM; while kill -0 $PPID 2>/dev/null && kill -0 $w 2>/dev/null; do sleep 1; done"]
         stdout: SplitParser {
             onRead: (data) => {
                 if (clipboardWindow.isVisible) {
@@ -475,7 +476,12 @@ PanelWindow {
     Item {
         id: topBarHole
 
-        property int barThickness: 48
+        property real thicknessRatio: {
+            let h = (clipboardWindow.rawBarSettings && clipboardWindow.rawBarSettings.height !== undefined) ? Number(clipboardWindow.rawBarSettings.height) : 40;
+            if (isNaN(h)) h = 40;
+            return Math.max(28, Math.min(48, h)) / 40;
+        }
+        property int barThickness: Math.round(48 * thicknessRatio)
         property string bp: clipboardWindow.barPosition
         property bool activeBar: !clipboardWindow.isBarEffectivelyHidden
 
@@ -508,25 +514,7 @@ PanelWindow {
 
     Timer {
         id: focusTimer
-        interval: 30
-        repeat: false
-        onTriggered: {
-            clipboardWindow.grabInputFocus();
-        }
-    }
-
-    Timer {
-        id: focusRetryTimer
-        interval: 120
-        repeat: false
-        onTriggered: {
-            clipboardWindow.grabInputFocus();
-        }
-    }
-
-    Timer {
-        id: focusFinalTimer
-        interval: 250
+        interval: 80
         repeat: false
         onTriggered: {
             clipboardWindow.grabInputFocus();
@@ -552,17 +540,12 @@ PanelWindow {
             } else {
                 executeClipFilter("");
             }
-            clipboardWindow.grabInputFocus();
             focusTimer.restart();
-            focusRetryTimer.restart();
-            focusFinalTimer.restart();
         } else {
             clipList.resetScroll();
             clipboardWindow.expandedClipId = "";
             filterDebounceTimer.stop();
             focusTimer.stop();
-            focusRetryTimer.stop();
-            focusFinalTimer.stop();
             keyboardNavTimer.stop();
         }
     }
@@ -588,7 +571,7 @@ PanelWindow {
             }
         }
 
-        property real dynamicCornerRadius: Math.max(0, Math.min(clipboardWindow.outerCornerRadius, (clipboardWindow.isSideAttached ? width : height)))
+        property real dynamicCornerRadius: Math.round(Math.max(0, Math.min(clipboardWindow.outerCornerRadius, (clipboardWindow.isSideAttached ? width : height))))
 
         x: {
             if (clipboardWindow.attachEdge === "left") return 0;
@@ -608,6 +591,16 @@ PanelWindow {
                 : clipboardWindow.animatedLauncherHeight
 
         opacity: (clipboardWindow.isVisible || animProgress > 0.001) ? 1.0 : 0.0
+
+        GlassFillets {
+            id: clipboardFillets
+            card: bgCard
+            filletRadius: container.dynamicCornerRadius
+            filletDir: clipboardWindow.attachEdge === "top" ? Qt.vector2d(0, -1)
+                     : clipboardWindow.attachEdge === "bottom" ? Qt.vector2d(0, 1)
+                     : clipboardWindow.attachEdge === "left" ? Qt.vector2d(-1, 0)
+                     : Qt.vector2d(1, 0)
+        }
 
         ShaderEffect {
             visible: container.dynamicCornerRadius > 0.5
@@ -630,7 +623,7 @@ PanelWindow {
                 if (clipboardWindow.attachEdge === "right") return 3.0;
                 return 1.0;
             }
-            property color color: ThemeBackend.base
+            property color color: Qt.alpha(ThemeBackend.base, ThemeBackend.elementOpacity)
             fragmentShader: "file://" + Caching.serpantinumDir + "/assets/shaders/ui/corner_cutout.frag.qsb"
         }
 
@@ -655,88 +648,31 @@ PanelWindow {
                 if (clipboardWindow.attachEdge === "right") return 1.0;
                 return 0.0;
             }
-            property color color: ThemeBackend.base
+            property color color: Qt.alpha(ThemeBackend.base, ThemeBackend.elementOpacity)
             fragmentShader: "file://" + Caching.serpantinumDir + "/assets/shaders/ui/corner_cutout.frag.qsb"
         }
         Rectangle {
             id: bgCard
             anchors.fill: parent
             radius: clipboardWindow.cornerRadius
-            color: ThemeBackend.base
+            topLeftRadius: (clipboardWindow.attachEdge === "top" || clipboardWindow.attachEdge === "left") ? 0 : clipboardWindow.cornerRadius
+            topRightRadius: (clipboardWindow.attachEdge === "top" || clipboardWindow.attachEdge === "right") ? 0 : clipboardWindow.cornerRadius
+            bottomLeftRadius: (clipboardWindow.attachEdge === "bottom" || clipboardWindow.attachEdge === "left") ? 0 : clipboardWindow.cornerRadius
+            bottomRightRadius: (clipboardWindow.attachEdge === "bottom" || clipboardWindow.attachEdge === "right") ? 0 : clipboardWindow.cornerRadius
+            color: Qt.alpha(ThemeBackend.base, ThemeBackend.elementOpacity)
             border.width: 0
             border.color: "transparent"
             clip: true
 
-            Rectangle {
-                visible: clipboardWindow.attachEdge === "top" && container.dynamicCornerRadius > 0.5
-                x: 0
-                y: 0
-                width: container.dynamicCornerRadius
-                height: container.dynamicCornerRadius
-                color: ThemeBackend.base
-            }
-
-            Rectangle {
-                visible: clipboardWindow.attachEdge === "top" && container.dynamicCornerRadius > 0.5
-                x: parent.width - container.dynamicCornerRadius
-                y: 0
-                width: container.dynamicCornerRadius
-                height: container.dynamicCornerRadius
-                color: ThemeBackend.base
-            }
-
-            Rectangle {
-                visible: clipboardWindow.attachEdge === "bottom" && container.dynamicCornerRadius > 0.5
-                x: 0
-                y: parent.height - container.dynamicCornerRadius
-                width: container.dynamicCornerRadius
-                height: container.dynamicCornerRadius
-                color: ThemeBackend.base
-            }
-
-            Rectangle {
-                visible: clipboardWindow.attachEdge === "bottom" && container.dynamicCornerRadius > 0.5
-                x: parent.width - container.dynamicCornerRadius
-                y: parent.height - container.dynamicCornerRadius
-                width: container.dynamicCornerRadius
-                height: container.dynamicCornerRadius
-                color: ThemeBackend.base
-            }
-
-            Rectangle {
-                visible: clipboardWindow.attachEdge === "left" && container.dynamicCornerRadius > 0.5
-                x: 0
-                y: 0
-                width: container.dynamicCornerRadius
-                height: container.dynamicCornerRadius
-                color: ThemeBackend.base
-            }
-
-            Rectangle {
-                visible: clipboardWindow.attachEdge === "left" && container.dynamicCornerRadius > 0.5
-                x: 0
-                y: parent.height - container.dynamicCornerRadius
-                width: container.dynamicCornerRadius
-                height: container.dynamicCornerRadius
-                color: ThemeBackend.base
-            }
-
-            Rectangle {
-                visible: clipboardWindow.attachEdge === "right" && container.dynamicCornerRadius > 0.5
-                x: parent.width - container.dynamicCornerRadius
-                y: 0
-                width: container.dynamicCornerRadius
-                height: container.dynamicCornerRadius
-                color: ThemeBackend.base
-            }
-
-            Rectangle {
-                visible: clipboardWindow.attachEdge === "right" && container.dynamicCornerRadius > 0.5
-                x: parent.width - container.dynamicCornerRadius
-                y: parent.height - container.dynamicCornerRadius
-                width: container.dynamicCornerRadius
-                height: container.dynamicCornerRadius
-                color: ThemeBackend.base
+            WallpaperBlur {
+                z: -1
+                anchors.fill: parent
+                topLeftRadius: parent.topLeftRadius
+                topRightRadius: parent.topRightRadius
+                bottomLeftRadius: parent.bottomLeftRadius
+                bottomRightRadius: parent.bottomRightRadius
+                filletRadius: clipboardFillets.filletRadius
+                filletDir: clipboardFillets.filletDir
             }
 
             Item {
@@ -765,6 +701,7 @@ PanelWindow {
                         Layout.preferredHeight: clipboardWindow.s(36)
 
                         baseColor: ThemeBackend.surface0
+                        bgOpacity: ThemeBackend.glassActive ? 0.0 : 1.0
                         accentColor: ThemeBackend.mauve
                         textColor: ThemeBackend.text
                         subTextColor: ThemeBackend.subtext0
@@ -842,6 +779,7 @@ PanelWindow {
                         buttonIcon: "󰆴"
                         iconFontSize: clipboardWindow.s(14)
                         accentColor: ThemeBackend.surface0
+                        bgOpacity: ThemeBackend.glassActive ? 0.0 : 1.0
                         textColor: ThemeBackend.text
                         visible: true
 
@@ -1001,9 +939,11 @@ PanelWindow {
                             width: ListView.view ? ListView.view.width : 0
                             height: clipboardWindow.s(22)
                             Text {
-                                anchors.left: parent.left
+                                anchors.fill: parent
                                 anchors.leftMargin: clipboardWindow.s(4)
-                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.rightMargin: clipboardWindow.s(4)
+                                verticalAlignment: Text.AlignVCenter
+                                horizontalAlignment: I18n.textAlignment
                                 text: section
                                 font.family: ThemeBackend.fontFamily
                                 font.weight: Font.Bold
@@ -1072,6 +1012,21 @@ PanelWindow {
                             z: isSelected ? 2 : 1
 
                             property bool isSelected: index === clipList.currentIndex
+                            property real selectFlash: 0.0
+
+                            onIsSelectedChanged: {
+                                if (isSelected && rowGlass.active) selectFlashAnim.restart();
+                            }
+
+                            NumberAnimation {
+                                id: selectFlashAnim
+                                target: clipDelegateWrapper
+                                property: "selectFlash"
+                                from: 1.0
+                                to: 0.0
+                                duration: 520
+                                easing.type: Easing.OutCubic
+                            }
 
                             scale: clipCardMa.pressed ? 0.98 : 1.0
                             Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutQuint } }
@@ -1210,7 +1165,9 @@ PanelWindow {
                                 opacity: Math.max(0.0, 1.0 - (Math.abs(clipDelegateWrapper.dragX) / (clipDelegateCard.width * 0.75)))
 
                                 radius: Math.min(ThemeBackend.borderRadius, clipboardWindow.s(12))
+                                readonly property bool glassRow: !isImage && ThemeBackend.liquidGlass
                                 color: {
+                                    if (glassRow) return "transparent";
                                     if (clipDelegateWrapper.isSelected) {
                                         return isImage ? ThemeBackend.surface0 : ThemeBackend.mauve;
                                     }
@@ -1219,6 +1176,19 @@ PanelWindow {
                                 clip: true
 
                                 Behavior on color { ColorAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+                                GlassFill {
+                                    id: rowGlass
+                                    anchors.fill: parent
+                                    radius: parent.radius
+                                    allowed: !clipDelegateCard.isImage
+                                    forceClear: clipDelegateWrapper.isSelected
+                                    tintColor: clipDelegateWrapper.isSelected ? ThemeBackend.text : ThemeBackend.surface1
+                                    tintAmount: clipDelegateWrapper.isSelected ? 0.1 : 0.3
+                                    tintStrength: 1.0
+                                    press: clipCardMa.pressed ? 0.8 : (clipDelegateWrapper.isSelected ? 0.6 : (clipCardMa.containsMouse ? 0.25 : 0))
+                                    pulse: clipDelegateWrapper.selectFlash
+                                }
 
                                 Image {
                                     id: clipCardCropImg
@@ -1375,20 +1345,28 @@ PanelWindow {
 
                                 Rectangle {
                                     id: clipTypeIcon
-                                    anchors.left: parent.left
-                                    anchors.top: parent.top
-                                    anchors.leftMargin: clipboardWindow.s(8)
-                                    anchors.topMargin: clipboardWindow.s(11)
+                                    x: I18n.rtl ? (parent.width - width - clipboardWindow.s(8)) : clipboardWindow.s(8)
+                                    y: clipboardWindow.s(11)
                                     width: clipboardWindow.s(30)
                                     height: clipboardWindow.s(30)
                                     radius: clipboardWindow.s(8)
-                                    color: (!clipDelegateCard.isImage && clipDelegateWrapper.isSelected) ? Qt.rgba(0, 0, 0, 0.15) : ThemeBackend.surface2
+                                    color: clipDelegateCard.glassRow ? "transparent" : ((!clipDelegateCard.isImage && clipDelegateWrapper.isSelected) ? Qt.rgba(0, 0, 0, 0.15) : ThemeBackend.surface2)
                                     clip: true
                                     z: 3
                                     visible: (clipDelegateCard.isImage || clipDelegateWrapper.itemExpandProgress < 0.99) && opacity > 0.001
                                     opacity: clipDelegateCard.isImage ? 1.0 : Math.max(0.0, 1.0 - clipDelegateWrapper.itemExpandProgress * 2.0)
 
                                     Behavior on color { ColorAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+                                    GlassFill {
+                                        anchors.fill: parent
+                                        radius: parent.radius
+                                        allowed: clipDelegateCard.glassRow
+                                        forceClear: clipDelegateWrapper.isSelected
+                                        tintColor: clipDelegateWrapper.isSelected ? ThemeBackend.text : ThemeBackend.surface2
+                                        tintAmount: clipDelegateWrapper.isSelected ? 0.1 : 0.3
+                                        tintStrength: 1.0
+                                    }
 
                                     Image {
                                         id: clipThumbImg
@@ -1408,7 +1386,7 @@ PanelWindow {
                                         anchors.centerIn: parent
                                         font.family: "Iosevka Nerd Font"
                                         font.pixelSize: clipboardWindow.s(14)
-                                        color: (!clipDelegateCard.isImage && clipDelegateWrapper.isSelected) ? ThemeBackend.crust : ThemeBackend.subtext0
+                                        color: (!clipDelegateCard.isImage && clipDelegateWrapper.isSelected && !ThemeBackend.liquidGlass) ? ThemeBackend.crust : (ThemeBackend.liquidGlass ? ThemeBackend.text : ThemeBackend.subtext0)
                                         text: model.type === "image" ? "󰋩" : "󰈙"
                                         visible: model.type !== "image" || (!model.content || clipThumbImg.status !== Image.Ready)
 
@@ -1419,14 +1397,12 @@ PanelWindow {
                                 FlipIcon {
                                     id: clipItemExpandIcon
                                     z: 4
-                                    anchors.top: parent.top
-                                    anchors.right: parent.right
-                                    anchors.topMargin: clipboardWindow.s(12.8)
-                                    anchors.rightMargin: clipboardWindow.s(8)
+                                    x: I18n.rtl ? clipboardWindow.s(8) : (parent.width - width - clipboardWindow.s(8))
+                                    y: clipboardWindow.s(12.8)
                                     size: clipboardWindow.s(26.4)
                                     cornerRadius: clipboardWindow.s(6.6)
-                                    accentColor: (!clipDelegateCard.isImage && clipDelegateWrapper.isSelected) ? Qt.rgba(0, 0, 0, 0.15) : ThemeBackend.surface2
-                                    iconColor: (!clipDelegateCard.isImage && clipDelegateWrapper.isSelected) ? (isHoveredOrHighlighted ? ThemeBackend.base : ThemeBackend.crust) : (isHoveredOrHighlighted ? ThemeBackend.text : ThemeBackend.subtext1)
+                                    accentColor: (!clipDelegateCard.isImage && clipDelegateWrapper.isSelected && !ThemeBackend.liquidGlass) ? Qt.rgba(0, 0, 0, 0.15) : ThemeBackend.surface2
+                                    iconColor: (!clipDelegateCard.isImage && clipDelegateWrapper.isSelected && !ThemeBackend.liquidGlass) ? (isHoveredOrHighlighted ? ThemeBackend.base : ThemeBackend.crust) : (isHoveredOrHighlighted ? ThemeBackend.text : ThemeBackend.subtext1)
                                     autoToggle: false
                                     visible: clipDelegateCard.canExpand
                                     flipped: clipDelegateWrapper.itemExpandProgress > 0.5
@@ -1439,12 +1415,9 @@ PanelWindow {
                                 Item {
                                     id: clipSummaryContainer
                                     z: 2
-                                    anchors.left: clipTypeIcon.right
-                                    anchors.leftMargin: clipboardWindow.s(8)
-                                    anchors.right: parent.right
-                                    anchors.rightMargin: clipDelegateCard.canExpand ? clipboardWindow.s(38) : clipboardWindow.s(12)
-                                    anchors.top: parent.top
-                                    anchors.topMargin: clipboardWindow.s(10)
+                                    x: !I18n.rtl ? (clipTypeIcon.x + clipTypeIcon.width + clipboardWindow.s(8)) : (clipDelegateCard.canExpand ? clipboardWindow.s(38) : clipboardWindow.s(12))
+                                    width: Math.max(0, parent.width - x - (!I18n.rtl ? (clipDelegateCard.canExpand ? clipboardWindow.s(38) : clipboardWindow.s(12)) : (clipTypeIcon.width + clipboardWindow.s(16))))
+                                    y: clipboardWindow.s(10)
                                     height: clipboardWindow.s(32)
                                     visible: !clipDelegateCard.isImage && clipDelegateWrapper.itemExpandProgress < 0.99 && opacity > 0.001
                                     opacity: Math.max(0.0, 1.0 - clipDelegateWrapper.itemExpandProgress * 2.0)
@@ -1458,7 +1431,8 @@ PanelWindow {
                                         font.family: ThemeBackend.fontFamily
                                         font.pixelSize: clipboardWindow.s(12)
                                         font.weight: clipDelegateWrapper.isSelected ? Font.Bold : Font.Normal
-                                        color: clipDelegateWrapper.isSelected ? ThemeBackend.crust : ThemeBackend.text
+                                        color: (clipDelegateWrapper.isSelected && !ThemeBackend.liquidGlass) ? ThemeBackend.crust : ThemeBackend.text
+                                        horizontalAlignment: I18n.textAlignment
                                         elide: Text.ElideRight
                                         maximumLineCount: 2
                                         wrapMode: Text.Wrap
@@ -1475,10 +1449,10 @@ PanelWindow {
                                     anchors.right: parent.right
                                     anchors.top: parent.top
                                     anchors.bottom: parent.bottom
-                                    anchors.leftMargin: clipboardWindow.s(10)
+                                    anchors.leftMargin: I18n.rtl ? (clipDelegateCard.canExpand ? clipboardWindow.s(42) : clipboardWindow.s(10)) : clipboardWindow.s(10)
                                     anchors.topMargin: clipboardWindow.s(10)
                                     anchors.bottomMargin: clipboardWindow.s(10)
-                                    anchors.rightMargin: clipDelegateCard.canExpand ? clipboardWindow.s(42) : clipboardWindow.s(10)
+                                    anchors.rightMargin: I18n.rtl ? clipboardWindow.s(10) : (clipDelegateCard.canExpand ? clipboardWindow.s(42) : clipboardWindow.s(10))
                                     clip: true
                                     opacity: Math.max(0.0, (clipDelegateWrapper.itemExpandProgress - 0.15) / 0.85)
 
@@ -1494,7 +1468,7 @@ PanelWindow {
                                         ScrollBar.vertical: ScrollBar {
                                             width: clipboardWindow.s(3)
                                             policy: ScrollBar.AsNeeded
-                                            contentItem: Rectangle { radius: clipboardWindow.s(1.5); color: clipDelegateWrapper.isSelected ? Qt.rgba(0, 0, 0, 0.25) : ThemeBackend.surface2 }
+                                            contentItem: Rectangle { radius: clipboardWindow.s(1.5); color: (clipDelegateWrapper.isSelected && !ThemeBackend.liquidGlass) ? Qt.rgba(0, 0, 0, 0.25) : ThemeBackend.surface2 }
                                         }
 
                                         MouseArea {
@@ -1514,11 +1488,12 @@ PanelWindow {
                                         Text {
                                             id: clipPreviewText
                                             width: clipFlickable.width
+                                            horizontalAlignment: I18n.textAlignment
                                             text: clipDelegateWrapper.itemExpandProgress > 0.01 ? ((clipboardWindow.expandedClipId === clipDelegateWrapper.clipIdString && clipboardWindow.expandedClipFullText !== "") ? clipboardWindow.expandedClipFullText : ((model && model.content) ? model.content : "")) : ""
                                             font.family: ThemeBackend.fontFamily
                                             font.pixelSize: clipboardWindow.s(12)
                                             font.weight: Font.Normal
-                                            color: clipDelegateWrapper.isSelected ? ThemeBackend.crust : ThemeBackend.text
+                                            color: (clipDelegateWrapper.isSelected && !ThemeBackend.liquidGlass) ? ThemeBackend.crust : ThemeBackend.text
                                             wrapMode: Text.Wrap
                                             textFormat: Text.PlainText
                                         }

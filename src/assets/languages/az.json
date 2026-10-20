@@ -42,7 +42,8 @@
       "dock": "Tətbiq rəfi",
       "bar_general": "Ümumi",
       "bar_modules": "Modullar",
-      "bar_side_modules": "Yan modullar"
+      "bar_side_modules": "Yan modullar",
+      "display_lockscreen": "Kilid ekranı"
     },
     "launcher": {
       "position": {
@@ -100,6 +101,10 @@
       "empty_graphic": {
         "title": "Bildiriş olmadıqda göstərilən animasiya",
         "desc": "Bildiriş mərkəzi boş olduqda yatan pişik təsvirini göstər"
+      },
+      "right_click_close": {
+        "title": "Sağ klikləmə ilə bağla",
+        "desc": "Bildirişi sağ klikləməklə bağla"
       }
     },
     "idle": {
@@ -163,7 +168,11 @@
       "hooks": {
         "title": "Hadisə əmrləri (qabıq əmrləri)"
       },
-      "custom_action_desc": "Xüsusi vaxt aşımı fəaliyyəti və əmri"
+      "custom_action_desc": "Xüsusi vaxt aşımı fəaliyyəti və əmri",
+      "lock_on_sleep": {
+        "title": "Yuxudan əvvəl kilidlə",
+        "desc": "Sistem dayandırılmazdan əvvəl, məsələn qapaq bağlananda, sessiyanı kilidlə"
+      }
     },
     "welcome": {
       "by_author": "Müəllif: @{author}",
@@ -272,6 +281,36 @@
         },
         "preset_name_placeholder": "Presetin adını daxil edin...",
         "screen_desc": "Masaüstü vidjetlərini konfiqurasiya edin və redaktə edin"
+      },
+      "lockscreen": {
+        "edit": {
+          "title": "Kilid ekranı",
+          "desc": "Kilid ekranınızın düzənini fərdiləşdirin",
+          "button": "Kilid ekranını redaktə et"
+        },
+        "limits": {
+          "title": "Cəhd limitləri",
+          "desc": "Çox sayda uğursuz cəhddən sonra parol daxil etməni müvəqqəti blokla və barmaq izi oxuyucusunu söndür"
+        },
+        "password_attempts": {
+          "title": "Parol cəhdləri",
+          "desc": "Parol daxil etmə 30 saniyəlik bloklanana qədər uğursuz cəhdlər"
+        },
+        "fingerprint_attempts": {
+          "title": "Barmaq izi cəhdləri",
+          "desc": "Barmaq izi oxuyucusu növbəti kilid açılmasına qədər söndürülənə qədər uğursuz skanlar"
+        },
+        "fingerprint": {
+          "title": "Barmaq izi ilə girişi aktiv et",
+          "desc": "Kilid ekranını barmaq izi ilə açmağa icazə ver"
+        },
+        "background": {
+          "select": "Fon seç",
+          "follow": "Divar kağızını izlə",
+          "custom": "Fərdi",
+          "follows_hint": "Divar kağızını izləyir",
+          "none": "Fon seçilməyib"
+        }
       }
     },
     "bar": {
@@ -322,6 +361,11 @@
         "title": "Zolağın eni",
         "desc": "Zolağın enini faizlə təyin edin"
       },
+      "center_by_edges": {
+        "title": "Kənarlara görə mərkəzləşdir",
+        "desc": "Orta modula görə mərkəzləşdirmək əvəzinə panelin sol və sağ kənarlarında bərabər boşluq saxlayır",
+        "desc_vertical": "Orta modula görə mərkəzləşdirmək əvəzinə panelin yuxarı və aşağı kənarlarında bərabər boşluq saxlayır"
+      },
       "workspaces": {
         "title": "Göstəriləcək iş sahələrinin sayını seçin",
         "disc": "Qeyd: bu, görüntü birləşdiricisindəki iş sahələrinin həqiqi sayına təsir etmir",
@@ -334,10 +378,6 @@
           "title": "Stil",
           "desc": "İş sahələri indikatorlarının vizual stilini seçin"
         }
-      },
-      "opacity": {
-        "title": "Zolağın qeyri-şəffaflığı",
-        "desc": "Zolağın qeyri-şəffaflığını faizlə təyin edin"
       },
       "style": {
         "title": "Zolağın üslubu",
@@ -527,6 +567,54 @@
           "button": "Arxa planlı interaktiv düymə",
           "text": "Arxa plansız sadə mətn və ikon"
         }
+      },
+      "media": {
+        "info_mode": {
+          "title": "Secondary info",
+          "desc": "Choose whether to show the song duration or its author",
+          "duration": "Duration",
+          "author": "Author"
+        },
+        "width": {
+          "title": "Width",
+          "desc": "Width of the song title area"
+        },
+        "show_icon": {
+          "title": "İkonu göstər",
+          "desc": "Albom üz qabığını və ya musiqi ikonunu göstər"
+        },
+        "show_controls": {
+          "title": "İdarəetməni göstər",
+          "desc": "Əvvəlki, oxut və növbəti düymələrini göstər"
+        },
+        "preview": {
+          "title": "Mahnının adı",
+          "author": "Song author"
+        }
+      },
+      "thickness": {
+        "title": "Panel qalınlığı",
+        "desc": "Panelin qalınlığını dəyişin, modullar uyğunlaşacaq"
+      },
+      "menu": {
+        "show_settings": {
+          "title": "Ayarlar ikonunu göstər",
+          "desc": "Ayarları açan düyməni göstər"
+        },
+        "show_launcher": {
+          "title": "Başlatıcı ikonunu göstər",
+          "desc": "Başlatıcını açan axtarış düyməsini göstər"
+        },
+        "style": {
+          "title": "Stil",
+          "desc": "Menyu modulunun vizual görünüşünü seçin",
+          "name": {
+            "button": "Düymə",
+            "icon": "İkon"
+          },
+          "button": "Fonlu interaktiv ikon düymələri",
+          "icon": "Fonsuz təmiz ikonlar"
+        }
       }
     },
     "theme": {
@@ -552,6 +640,18 @@
         "select_wallpaper": "Fon şəkli seç",
         "no_wallpaper_selected": "Fon şəkli seçilməyib",
         "select": "Divar kağızı"
+      },
+      "element_opacity": {
+        "title": "Element şəffaflığı",
+        "desc": "Panelin, dokun, vidjetlərin və digər bütün qabıq elementlərinin şəffaflığı"
+      },
+      "blur_background": {
+        "title": "Bulanıq divar kağızı fonu əlavə et",
+        "desc": "Şəffaflıqdan istifadə edən hər elementin arxasında divar kağızını bulanıqlaşdır",
+        "style": {
+          "blur": "Bulanıqlıq",
+          "liquid": "Maye şüşə"
+        }
       }
     },
     "file_picker": {
@@ -566,7 +666,8 @@
         "pictures": "Şəkillər",
         "music": "Musiqi",
         "documents": "Sənədlər"
-      }
+      },
+      "done": "Hazırdır"
     },
     "font_picker": {
       "title": "Yazı növü seç",
@@ -759,10 +860,6 @@
         "done": "Hazırdır",
         "empty": "Uyğun tətbiq yoxdur"
       },
-      "opacity": {
-        "title": "Tətbiq rəfinin qeyri-şəffaflığı",
-        "desc": "Tətbiq rəfinin arxa fonunun qeyri-şəffaflıq səviyyəsini tənzimlə"
-      },
       "override_bounds": {
         "title": "Ekran hüdudlarından kənara çıxanda ölçünün düzəldilməsini ləğv et",
         "desc": "Tətbiq rəfi ekran hüdudlarını aşsa belə, elementin xüsusi ölçüsünü saxla"
@@ -790,6 +887,33 @@
       "smart_autohide": {
         "title": "Ağıllı avto-gizlətmə",
         "desc": "Doku yalnız pəncərələr açıq olduqda gizlət, masaüstündə görünən saxla"
+      },
+      "focus_running": {
+        "title": "Mövcud pəncərəni fokuslayın",
+        "desc": "Tətbiq ikonuna kliklədikdə yeni nüsxə başlatmaq əvəzinə açıq pəncərəsi aktivləşdirilir"
+      },
+      "show_running_indicators": {
+        "title": "İşləmə indikatorları",
+        "desc": "Açıq tətbiq ikonlarında nöqtə və ya xətt indikatorlarını göstərin"
+      },
+      "show_running_apps": {
+        "title": "Açıq tətbiqləri göstərin",
+        "desc": "Bərkidilməmiş açıq tətbiqləri dokda göstərin"
+      },
+      "running_scope": {
+        "title": "Aktiv pəncərə əhatəsi",
+        "desc": "Dok tərəfindən göstərilən və idarə olunan işləyən pəncərələri filtrləyin",
+        "auto": "Avtomatik (kompozitor susmaya görə)",
+        "all": "Bütün iş sahələri və monitorlar",
+        "output": "Yalnız cari monitor",
+        "workspace": "Yalnız aktiv iş sahəsi"
+      },
+      "window_menu": {
+        "untitled": "Untitled"
+      },
+      "background": {
+        "title": "Tətbiqlərin arxasında fon çək",
+        "desc": "Tətbiq ikonalarının arxasında dok panelini göstər"
       }
     },
     "lyrics_picker": {
@@ -874,13 +998,65 @@
       "authenticating": "Kimlik doğrulanır...",
       "enter_pin": "PIN daxil edin"
     },
+    "fingerprint": {
+      "ready": "Sensora toxunun",
+      "not_recognized": "Barmaq izi tanınmadı",
+      "recognized": "Barmaq izi tanındı"
+    },
     "power": {
       "suspend": "Yuxu rejiminə keçir",
       "reboot": "Yenidən başlat",
       "power_off": "Söndür"
     },
     "default_user": "İstifadəçi",
-    "unknown": "Naməlum"
+    "unknown": "Naməlum",
+    "redactor": {
+      "done": "Hazırdır",
+      "element": {
+        "avatar": "Avatar",
+        "user": "İstifadəçi",
+        "password": "Parol",
+        "fingerprint": "Barmaq izi",
+        "notifications": "Bildirişlər",
+        "clock": "Saat",
+        "lockstatus": "Kilid vəziyyəti",
+        "keyboard": "Klaviatura",
+        "battery": "Batareya"
+      },
+      "variant": {
+        "avatar": {
+          "round": "Dairəvi",
+          "rounded": "Yumrulanmış"
+        },
+        "user": {
+          "filled": "Dolu",
+          "plain": "Sadə"
+        },
+        "password": {
+          "filled": "Dolu",
+          "glass": "Şüşə"
+        },
+        "fingerprint": {
+          "classic": "Klassik",
+          "ring": "Halqa",
+          "scanner": "Skaner",
+          "pulse": "Nəbz",
+          "orbit": "Orbit",
+          "liquid": "Maye"
+        },
+        "notifications": {
+          "card": "Kart",
+          "plain": "Sadə"
+        },
+        "lockstatus": {
+          "filled": "Dolu",
+          "plain": "Sadə"
+        }
+      },
+      "setting": {
+        "show_text": "Mətni göstər"
+      }
+    }
   },
   "music": {
     "nothing_playing": "Heç nə səsləndirilmir",
@@ -894,6 +1070,26 @@
     "eq": {
       "apply": "Tətbiq et",
       "saved": "Saxlanılıb"
+    },
+    "audio": {
+      "title": "Səs",
+      "balance": "Kanal balansı",
+      "reset": "Sıfırla",
+      "centered": "Mərkəzdə",
+      "left_slightly_favored": "Sol kanal az üstün",
+      "right_slightly_favored": "Sağ kanal az üstün",
+      "left_only": "Yalnız sol",
+      "right_only": "Yalnız sağ",
+      "left_favored": "Sol kanal üstün",
+      "right_favored": "Sağ kanal üstün",
+      "test": "Sınaq",
+      "stop_test": "Dayandır",
+      "mono": "Mono səs",
+      "swap": "Sol/sağ dəyişdir",
+      "dynamic_range": "Dinamik diapazon",
+      "off": "Söndürülüb",
+      "balanced": "Balanslı",
+      "night": "Gecə"
     },
     "presets": {
       "flat": "Düz",
@@ -932,7 +1128,8 @@
     },
     "actions": {
       "unpair": "Cütləşdirməni ləğv et",
-      "scan": "Axtar"
+      "scan": "Axtar",
+      "sign_in": "Daxil ol"
     }
   },
   "notifications": {
@@ -1032,11 +1229,33 @@
       "pin": "Bərkit",
       "unpin": "Bərkitməni sil"
     },
+    "calculator": {
+      "history": "Tarixçə",
+      "no_history": "Hələ hesablama yoxdur",
+      "clear_history": "Tarixçəni təmizlə",
+      "copied": "Kopyalandı",
+      "deg": "Der",
+      "rad": "Rad",
+      "grad": "Qrad",
+      "inv": "Tərs",
+      "mode": {
+        "normal": "Adi",
+        "advanced": "Qabaqcıl"
+      },
+      "clear": "AC",
+      "error": {
+        "syntax": "Yanlış ifadə",
+        "div0": "Sıfıra bölmək olmaz",
+        "domain": "Yanlış giriş",
+        "paste": "Yanlış yapışdırma"
+      }
+    },
     "tabs": {
       "draw": "Rəsm",
       "system": "Sistem",
       "timer": "Taymer",
       "notes": "Qeydlər",
+      "calculator": "Kalkulyator",
       "tab": "Vərəq"
     }
   },
@@ -1251,6 +1470,8 @@
       "default": "Standart",
       "material": "Material",
       "materialAnalog": "Material analoq",
+      "lockscreen": "Lockscreen",
+      "stretched": "Stretched",
       "lumen": "Lümen",
       "lyrics": "Mahnı sözləri",
       "simpleLyrics": "Sadə mahnı mətni"
@@ -1453,7 +1674,11 @@
     "deploy": {
       "configuring_sddm": "SDDM giriş ekranı idarəedicisi tənzimlənir...",
       "disabling_dm": "-> Uyğunsuzluq yaradan giriş ekranı idarəedicisi söndürülür: {dm}",
-      "sddm_success": "-> SDDM Material You mövzusu quraşdırılıb və xidmət aktivdir [ OK ]"
+      "sddm_success": "-> SDDM Material You mövzusu quraşdırılıb və xidmət aktivdir [ OK ]",
+      "sddm_no_wayland_compositor": "Giriş ekranı üçün dəstəklənən Wayland kompozitoru (kwin_wayland/weston) tapılmadı, SDDM üçün X11 istifadə olunur.",
+      "sddm_no_xorg": "Xorg tapılmadı, SDDM üçün {compositor} istifadə olunur.",
+      "sddm_no_backend": "/usr/local/bin, /usr/bin və ya /bin içində nə Xorg, nə də giriş ekranı üçün dəstəklənən Wayland kompozitoru (kwin_wayland/weston) tapıldı.",
+      "sddm_skipped": "SDDM quraşdırılması ötürüldü: istifadə oluna bilən ekran serveri və ya giriş kompozitoru tapılmadı. Cari ekran meneceri dəyişdirilmədi."
     }
   },
   "translator": {

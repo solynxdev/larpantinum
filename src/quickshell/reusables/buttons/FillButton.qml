@@ -26,6 +26,7 @@ Item {
     property color baseColor: "#181825"
     property color hoverColor: "#1e1e2e"
     property color textColor: "#cdd6f4"
+    property real bgOpacity: 1.0
     property color filledTextColor: "#11111b"
     property int fillDuration: 800
     property int autoResetTimeout: 1200
@@ -70,12 +71,15 @@ Item {
 
         RowLayout {
             id: contentRow
+            layoutDirection: I18n.layoutDirection
+            x: {
+                if (root.contentAlignment === Qt.AlignHCenter) {
+                    return Math.round((parent.width - width) / 2);
+                }
+                let alignLeft = (root.contentAlignment === Qt.AlignLeft && !I18n.rtl) || (root.contentAlignment === Qt.AlignRight && I18n.rtl);
+                return alignLeft ? root.horizontalPadding : (parent.width - width - root.horizontalPadding);
+            }
             anchors.verticalCenter: parent.verticalCenter
-            anchors.horizontalCenter: root.contentAlignment === Qt.AlignHCenter ? parent.horizontalCenter : undefined
-            anchors.left: root.contentAlignment === Qt.AlignLeft ? parent.left : undefined
-            anchors.leftMargin: root.contentAlignment === Qt.AlignLeft ? root.horizontalPadding : 0
-            anchors.right: root.contentAlignment === Qt.AlignRight ? parent.right : undefined
-            anchors.rightMargin: root.contentAlignment === Qt.AlignRight ? root.horizontalPadding : 0
             spacing: 12
 
             Text {
@@ -110,8 +114,21 @@ Item {
                 Layout.alignment: Qt.AlignVCenter
                 spacing: 2
 
+                Text {
+                    id: rtlMainText
+                    visible: I18n.rtl && root.buttonText !== ""
+                    text: root.buttonText
+                    font.family: ThemeBackend.fontFamily
+                    font.weight: Font.Bold
+                    font.pixelSize: root.textFontSize
+                    color: bRoot.contentTextColor
+                    horizontalAlignment: root.contentAlignment === Qt.AlignHCenter ? Text.AlignHCenter : I18n.textAlignment
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
+
                 Row {
                     id: charRow
+                    visible: !I18n.rtl
                     spacing: 0
                     Repeater {
                         model: Array.from(root.buttonText)
@@ -212,6 +229,7 @@ Item {
                     font.family: "JetBrains Mono"
                     font.pixelSize: Math.max(10, root.textFontSize - 6)
                     color: bRoot.contentTextColor
+                    horizontalAlignment: root.contentAlignment === Qt.AlignHCenter ? Text.AlignHCenter : I18n.textAlignment
                     opacity: 0.8
                     Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -265,10 +283,23 @@ Item {
         id: btnShape
         anchors.fill: parent
         radius: root.effectiveRadius
-        clip: true
-        color: root.isHoveredOrHighlighted ? root.hoverColor : root.baseColor
+        clip: !glass.active
+        color: glass.active ? "transparent" : Qt.alpha(root.isHoveredOrHighlighted ? root.hoverColor : root.baseColor, Math.min(1, root.bgOpacity * (root.isHoveredOrHighlighted ? root.hoverColor.a : root.baseColor.a)))
 
         Behavior on color { ColorAnimation { duration: 180 } }
+
+        GlassFill {
+            id: glass
+            anchors.fill: parent
+            shadow: 1
+            press: (btnMa.pressed && !root.isTriggered) ? 0.6 + 0.4 * root.fillLevel : (root.isHoveredOrHighlighted ? 0.25 : 0)
+            pulse: Math.min(1, root.flashOpacity * 2.5)
+            Behavior on press { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+            radius: root.effectiveRadius
+            tintColor: root.isHoveredOrHighlighted ? root.hoverColor : root.baseColor
+            tintAmount: (root.isHoveredOrHighlighted ? 0.4 : 0.28) * root.bgOpacity
+            Behavior on tintAmount { NumberAnimation { duration: 180 } }
+        }
 
         scale: (btnMa.pressed && !root.isTriggered ? 0.96 : (root.isHoveredOrHighlighted ? 1.02 : 1.0)) * root.popScale
         Behavior on scale { NumberAnimation { duration: 300; easing.type: Easing.OutQuint } }
@@ -296,7 +327,24 @@ Item {
             vertical: 0.0
             color1: Qt.darker(root.accentColor, 1.15)
             color2: root.accentColor
-            visible: root.fillLevel > 0.001
+            visible: !glass.active && root.fillLevel > 0.001
+        }
+
+        LiquidFill {
+            id: liquidFill
+            anchors.fill: parent
+            radius: root.effectiveRadius
+            fillLevel: root.fillLevel
+            waveAmp: waveCanvas.waveAmp
+            phase: waveCanvas.wavePhase
+            color1: Qt.lighter(root.accentColor, 1.1)
+            color2: root.accentColor
+            bodyAlpha: 0.4
+            visible: glass.active && root.fillLevel > 0.001
+            property real lift: (root.fillLevel > 0.001 && root.fillLevel < 0.999) ? 1.0 : 0.0
+            Behavior on lift { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
+            transformOrigin: Item.Left
+            scale: 1.0 + 0.07 * lift
         }
 
         Rectangle {
@@ -304,6 +352,7 @@ Item {
             radius: root.effectiveRadius
             color: "#ffffff"
             opacity: root.flashOpacity
+            visible: !glass.active
             PropertyAnimation on opacity { id: btnFlashAnim; to: 0; duration: 400; easing.type: Easing.OutExpo }
         }
 

@@ -41,12 +41,17 @@ FocusScope {
     property bool revealTyping: true
     property int revealDuration: 300
 
-    property int horizontalAlignment: TextInput.AlignLeft
+    property int horizontalAlignment: I18n.rtl ? TextInput.AlignRight : TextInput.AlignLeft
     property int charSlotWidth: -1
     property int charSpacing: 1
     property alias symbolSpacing: root.charSpacing
     readonly property real charSlotStep: (root.charSlotWidth > 0 ? root.charSlotWidth : globalCharMetrics.width) + root.charSpacing
-    property real scrollOffset: 0
+    property real scrollShift: 0
+    readonly property bool contentFits: charRow.contentWidth <= fieldArea.width
+    readonly property real alignOffset: root.contentFits ? root.computeRowX(charRow.contentWidth, fieldArea.width) : 0
+    readonly property real scrollOffset: root.alignOffset + root.scrollShift
+
+    Behavior on scrollShift { NumberAnimation { duration: 200; easing.type: Easing.OutQuad } }
 
     property var maskPainter: function(ctx, size, color) {
         ctx.beginPath();
@@ -133,7 +138,7 @@ FocusScope {
         } else {
             innerInput.text = "";
             charModel.clear();
-            root.scrollOffset = 0;
+            root.scrollShift = 0;
         }
         root.text = "";
         root.cleared();
@@ -185,19 +190,7 @@ FocusScope {
         }
 
         if (totalW <= visibleW) {
-            switch (root.horizontalAlignment) {
-                case TextInput.AlignHCenter:
-                case Qt.AlignHCenter:
-                    root.scrollOffset = (visibleW - totalW) / 2;
-                    break;
-                case TextInput.AlignRight:
-                case Qt.AlignRight:
-                    root.scrollOffset = visibleW - totalW;
-                    break;
-                default:
-                    root.scrollOffset = 0;
-                    break;
-            }
+            root.scrollShift = 0;
             return;
         }
 
@@ -208,11 +201,11 @@ FocusScope {
         let curScreenX = curX + root.scrollOffset;
 
         if (curScreenX < margin) {
-            root.scrollOffset = Math.min(maxOffset, Math.max(minOffset, margin - curX));
+            root.scrollShift = Math.min(maxOffset, Math.max(minOffset, margin - curX));
         } else if (curScreenX > visibleW - margin - 2) {
-            root.scrollOffset = Math.min(maxOffset, Math.max(minOffset, visibleW - margin - 2 - curX));
+            root.scrollShift = Math.min(maxOffset, Math.max(minOffset, visibleW - margin - 2 - curX));
         } else {
-            root.scrollOffset = Math.min(maxOffset, Math.max(minOffset, root.scrollOffset));
+            root.scrollShift = Math.min(maxOffset, Math.max(minOffset, root.scrollShift));
         }
     }
 
@@ -327,14 +320,28 @@ FocusScope {
         }
     }
 
+    property real bgOpacity: 1.0
+    function withBgOpacity(c) { return Qt.rgba(c.r, c.g, c.b, c.a * root.bgOpacity); }
+
     Rectangle {
         id: bgShape
         anchors.fill: parent
         radius: root.cornerRadius
         clip: true
         opacity: root.enabled ? 1.0 : 0.5
-        color: root.isHoveredOrHighlighted ? Qt.darker(root.baseColor, 1.14) : root.baseColor
+        color: glass.active ? "transparent" : root.withBgOpacity(root.isHoveredOrHighlighted ? Qt.darker(root.baseColor, 1.14) : root.baseColor)
         Behavior on color { ColorAnimation { duration: 180 } }
+
+        GlassFill {
+            id: glass
+            anchors.fill: parent
+            radius: parent.radius
+            tintColor: root.baseColor
+            press: root.hasFocus ? 0.55 : (root.isHoveredOrHighlighted ? 0.2 : 0)
+            Behavior on press { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+            tintAmount: (root.hasFocus ? 0.38 : (root.isHoveredOrHighlighted ? 0.3 : 0.22)) * root.bgOpacity
+            Behavior on tintAmount { NumberAnimation { duration: 180 } }
+        }
 
         scale: (root.hasError ? 1.04 : (root.isBusy ? 0.98 : 1.0)) * root.focusPop
         Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutQuint } }
@@ -342,6 +349,7 @@ FocusScope {
     }
 
     RowLayout {
+        layoutDirection: I18n.layoutDirection
         anchors.fill: parent
         anchors.leftMargin: root.horizontalPadding
         anchors.rightMargin: root.horizontalPadding
@@ -370,8 +378,8 @@ FocusScope {
                 text: root.placeholderText
                 font.family: root.fontFamily
                 font.pixelSize: root.fontPixelSize
-                color: root.subTextColor
-                opacity: (innerInput.text.length === 0 && charModel.count === 0) ? 0.45 : 0.0
+                color: glass.active ? "#ffffff" : root.subTextColor
+                opacity: (innerInput.text.length === 0 && charModel.count === 0) ? (glass.active ? 1.0 : 0.45) : 0.0
                 x: root.computeRowX(implicitWidth, fieldArea.width)
                 anchors.verticalCenter: parent.verticalCenter
                 Behavior on opacity { NumberAnimation { duration: 180 } }
@@ -390,11 +398,12 @@ FocusScope {
                 color: root.activeSignalColor
                 opacity: hasSelection ? 0.28 : 0.0
 
-                x: root.scrollOffset + (selMin * root.charSlotStep) - 2
+                property real selX: selMin * root.charSlotStep - 2
+                x: root.scrollOffset + selX
                 width: hasSelection ? ((selMax - selMin) * root.charSlotStep - root.charSpacing + 4) : 0
 
                 Behavior on opacity { NumberAnimation { duration: 110; easing.type: Easing.OutCubic } }
-                Behavior on x { NumberAnimation { duration: 60; easing.type: Easing.OutQuad } }
+                Behavior on selX { NumberAnimation { duration: 60; easing.type: Easing.OutQuad } }
                 Behavior on width { NumberAnimation { duration: 60; easing.type: Easing.OutQuad } }
             }
 
@@ -416,8 +425,6 @@ FocusScope {
                 property int entranceDuration: 420
                 property real entranceOvershoot: 3.2
                 property int exitDuration: 160
-
-                Behavior on x { NumberAnimation { duration: 200; easing.type: Easing.OutQuad } }
 
                 add: Transition {
                     ParallelAnimation {
@@ -482,9 +489,10 @@ FocusScope {
                 color: root.caretColor
                 visible: !root.multiLine && root.showCaret && (root.hasFocus || root.action_highlight)
                 anchors.verticalCenter: parent.verticalCenter
-                x: root.scrollOffset + (innerInput.cursorPosition * root.charSlotStep)
+                property real slotX: innerInput.cursorPosition * root.charSlotStep
+                x: root.scrollOffset + slotX
 
-                Behavior on x { NumberAnimation { duration: 200; easing.type: Easing.OutQuad } }
+                Behavior on slotX { NumberAnimation { duration: 200; easing.type: Easing.OutQuad } }
 
                 SequentialAnimation on opacity {
                     running: !root.multiLine && root.showCaret && (root.hasFocus || root.action_highlight) && root.isWidgetVisible
@@ -579,11 +587,13 @@ FocusScope {
 
                 Text {
                     id: multiPlaceholder
+                    anchors.fill: parent
+                    horizontalAlignment: I18n.textAlignment
                     text: root.placeholderText
                     font.family: root.fontFamily
                     font.pixelSize: root.fontPixelSize
-                    color: root.subTextColor
-                    opacity: (innerTextEdit.text.length === 0) ? 0.45 : 0.0
+                    color: glass.active ? "#ffffff" : root.subTextColor
+                    opacity: (innerTextEdit.text.length === 0) ? (glass.active ? 1.0 : 0.45) : 0.0
                     Behavior on opacity { NumberAnimation { duration: 180 } }
                 }
 
@@ -595,6 +605,7 @@ FocusScope {
                     color: root.textColor
                     font.family: root.fontFamily
                     font.pixelSize: root.fontPixelSize
+                    horizontalAlignment: I18n.textAlignment
                     wrapMode: TextEdit.Wrap
                     selectByMouse: true
                     cursorVisible: false

@@ -1,24 +1,19 @@
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
+import "../"
 import "../../"
 import "../../reusables"
 
-Item {
+GuideTab {
     id: notificationsTabRoot
-    required property var rootObj
-    required property int tabIndex
 
-    anchors.fill: parent
-    visible: rootObj.currentTab === tabIndex
-    opacity: visible ? 1.0 : 0.0
-    property real slideY: visible ? 0 : rootObj.s(10)
-
-    Behavior on slideY { NumberAnimation { duration: 250; easing.type: Easing.OutQuart } }
-    transform: Translate { y: slideY }
-    Behavior on opacity { NumberAnimation { duration: 250 } }
+    property alias screenSelector: positionRow.screenSelector
+    property alias posDropdown: positionRow.posDropdown
+    property alias soundDropdown: soundSection.soundDropdown
+    property alias debounceTimer: debounceTimer
+    property alias soundPickerPopup: soundPickerPopup
 
     property bool selectorOpen: false
     property bool gridEnabled: false
@@ -62,7 +57,8 @@ Item {
         "verticalPosition": presetTopV,
         "sound": true,
         "soundFile": "",
-        "showEmptyGraphic": true
+        "showEmptyGraphic": true,
+        "rightClickClose": true
     })
 
     property var notifSettings: {
@@ -96,6 +92,8 @@ Item {
     property bool soundEnabled: notifSettings && notifSettings.sound !== undefined ? notifSettings.sound : true
     property string selectedSound: notifSettings && notifSettings.soundFile !== undefined ? notifSettings.soundFile : ""
     property bool showEmptyGraphic: notifSettings && notifSettings.showEmptyGraphic !== undefined ? notifSettings.showEmptyGraphic : true
+
+    property bool rightClickClose: notifSettings && notifSettings.rightClickClose !== undefined ? notifSettings.rightClickClose : true
 
     function getPresetIndex(h, v) {
         if (Math.abs(v - presetTopV) <= 2 && Math.abs(h - presetRightH) <= 2) return 0;
@@ -185,6 +183,7 @@ Item {
         notificationsTabRoot.soundEnabled = s.sound !== undefined ? s.sound : true;
         notificationsTabRoot.selectedSound = s.soundFile !== undefined ? s.soundFile : "";
         notificationsTabRoot.showEmptyGraphic = s.showEmptyGraphic !== undefined ? s.showEmptyGraphic : true;
+        notificationsTabRoot.rightClickClose = s.rightClickClose !== undefined ? s.rightClickClose : true;
         notificationsTabRoot.notifSettings = s;
     }
 
@@ -370,31 +369,9 @@ Item {
             width: parent.width
             spacing: rootObj.s(6)
 
-            SettingsRow {
-                id: posSettingsRow
-                rootObj: notificationsTabRoot.rootObj
-                icon: "󰍹"
-                iconOffsetX: -2
-                title: I18n.t("guide.notifications.position.title", "Screen position")
-                titleBold: true
-                description: I18n.t("guide.notifications.position.desc", "Select a preset position or drag on screen")
-                innerSpacing: (notificationsTabRoot.selectorOpen || selectorWrapper.implicitHeight > 0) ? rootObj.s(12) : 0
-                bottomSpacing: 0
+            NotificationPositionRow { id: positionRow; tab: notificationsTabRoot }
 
-                ClickButton {
-                    implicitHeight: rootObj.s(32)
-                    horizontalPadding: rootObj.s(12)
-                    buttonText: notificationsTabRoot.selectorOpen ? I18n.t("guide.notifications.position.close_selector", "Close the selector") : I18n.t("guide.notifications.position.select_on_screen", "Select on screen...")
-                    buttonIcon: notificationsTabRoot.selectorOpen ? "󰅖" : "󰍹"
-                    iconFontSize: rootObj.s(13)
-                    textFontSize: rootObj.s(11)
-                    accentColor: notificationsTabRoot.selectorOpen ? ThemeBackend.mauve : ThemeBackend.surface0
-                    textColor: notificationsTabRoot.selectorOpen ? ThemeBackend.crust : ThemeBackend.text
-                    cornerRadius: ThemeBackend.borderRadius
-                    onClicked: {
-                        notificationsTabRoot.selectorOpen = !notificationsTabRoot.selectorOpen;
-                    }
-                }
+            NotificationsBehaviorSection { tab: notificationsTabRoot }
 
                 Rectangle {
                     id: notifCustomPosBox

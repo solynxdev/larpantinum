@@ -305,7 +305,7 @@ PanelWindow {
                 }
                 return sideMusicPopout.alignBottom ? 3.0 : 1.0;
             }
-            property color color: ThemeBackend.base
+            property color color: Qt.alpha(ThemeBackend.base, ThemeBackend.elementOpacity)
             fragmentShader: "file://" + Caching.serpantinumDir + "/assets/shaders/ui/corner_cutout.frag.qsb"
         }
 
@@ -332,26 +332,36 @@ PanelWindow {
                 }
                 return sideMusicPopout.alignBottom ? 2.0 : 0.0;
             }
-            property color color: ThemeBackend.base
+            property color color: Qt.alpha(ThemeBackend.base, ThemeBackend.elementOpacity)
             fragmentShader: "file://" + Caching.serpantinumDir + "/assets/shaders/ui/corner_cutout.frag.qsb"
         }
 
         Rectangle {
             id: menuBox
             anchors.fill: parent
-            color: ThemeBackend.base
+            color: Qt.alpha(ThemeBackend.base, ThemeBackend.elementOpacity)
             radius: sideMusicPopout.cornerRadius
             border.width: 0
             border.color: "transparent"
             clip: true
 
+            WallpaperBlur {
+                z: -1
+                anchors.fill: parent
+                rim: 0
+                topLeftRadius: parent.topLeftRadius
+                topRightRadius: parent.topRightRadius
+                bottomLeftRadius: parent.bottomLeftRadius
+                bottomRightRadius: parent.bottomRightRadius
+            }
+
             Rectangle {
                 visible: sideMusicPopout.isSolid && !sideMusicPopout.isSideBar && !sideMusicPopout.alignBottom && menuContainer.dynamicCornerRadius > 0.5
                 x: 0
                 y: 0
                 width: menuContainer.dynamicCornerRadius
                 height: menuContainer.dynamicCornerRadius
-                color: ThemeBackend.base
+                color: Qt.alpha(ThemeBackend.base, ThemeBackend.elementOpacity)
             }
 
             Rectangle {
@@ -360,7 +370,7 @@ PanelWindow {
                 y: 0
                 width: menuContainer.dynamicCornerRadius
                 height: menuContainer.dynamicCornerRadius
-                color: ThemeBackend.base
+                color: Qt.alpha(ThemeBackend.base, ThemeBackend.elementOpacity)
             }
 
             Rectangle {
@@ -369,7 +379,7 @@ PanelWindow {
                 y: parent.height - menuContainer.dynamicCornerRadius
                 width: menuContainer.dynamicCornerRadius
                 height: menuContainer.dynamicCornerRadius
-                color: ThemeBackend.base
+                color: Qt.alpha(ThemeBackend.base, ThemeBackend.elementOpacity)
             }
 
             Rectangle {
@@ -378,7 +388,7 @@ PanelWindow {
                 y: parent.height - menuContainer.dynamicCornerRadius
                 width: menuContainer.dynamicCornerRadius
                 height: menuContainer.dynamicCornerRadius
-                color: ThemeBackend.base
+                color: Qt.alpha(ThemeBackend.base, ThemeBackend.elementOpacity)
             }
 
             Rectangle {
@@ -387,7 +397,7 @@ PanelWindow {
                 y: 0
                 width: menuContainer.dynamicCornerRadius
                 height: menuContainer.dynamicCornerRadius
-                color: ThemeBackend.base
+                color: Qt.alpha(ThemeBackend.base, ThemeBackend.elementOpacity)
             }
 
             Rectangle {
@@ -396,7 +406,7 @@ PanelWindow {
                 y: parent.height - menuContainer.dynamicCornerRadius
                 width: menuContainer.dynamicCornerRadius
                 height: menuContainer.dynamicCornerRadius
-                color: ThemeBackend.base
+                color: Qt.alpha(ThemeBackend.base, ThemeBackend.elementOpacity)
             }
 
             Rectangle {
@@ -405,7 +415,7 @@ PanelWindow {
                 y: 0
                 width: menuContainer.dynamicCornerRadius
                 height: menuContainer.dynamicCornerRadius
-                color: ThemeBackend.base
+                color: Qt.alpha(ThemeBackend.base, ThemeBackend.elementOpacity)
             }
 
             Rectangle {
@@ -414,7 +424,7 @@ PanelWindow {
                 y: parent.height - menuContainer.dynamicCornerRadius
                 width: menuContainer.dynamicCornerRadius
                 height: menuContainer.dynamicCornerRadius
-                color: ThemeBackend.base
+                color: Qt.alpha(ThemeBackend.base, ThemeBackend.elementOpacity)
             }
 
             HoverHandler {
@@ -464,67 +474,18 @@ PanelWindow {
                         anchors.fill: parent
                         spacing: sideMusicPopout.s(2)
 
-                        Item {
-                            id: titleClipArea
+                        MarqueeText {
                             Layout.fillWidth: true
                             Layout.preferredHeight: sideMusicPopout.s(18)
-                            clip: true
-
-                            property int marqueeSpacing: sideMusicPopout.s(40)
-
-                            Item {
-                                id: marqueeTrack
-                                height: parent.height
-
-                                Row {
-                                    spacing: titleClipArea.marqueeSpacing
-
-                                    Text {
-                                        id: titleMainText
-                                        text: isMediaActive ? (targetPlayer ? targetPlayer.trackTitle : "") : I18n.t("music.nothing_playing")
-                                        font.family: ThemeBackend.fontFamily
-                                        font.weight: Font.Black
-                                        font.pixelSize: sideMusicPopout.s(13)
-                                        color: ThemeBackend.text
-
-                                        onTextChanged: {
-                                            marqueeTrack.x = 0;
-                                            if (implicitWidth > titleClipArea.width) {
-                                                titleScrollAnimation.restart();
-                                            } else {
-                                                titleScrollAnimation.stop();
-                                            }
-                                        }
-                                    }
-
-                                    Text {
-                                        text: titleMainText.text
-                                        font.family: ThemeBackend.fontFamily
-                                        font.weight: Font.Black
-                                        font.pixelSize: sideMusicPopout.s(13)
-                                        color: ThemeBackend.text
-                                        visible: titleMainText.implicitWidth > titleClipArea.width
-                                    }
-                                }
-
-                                SequentialAnimation on x {
-                                    id: titleScrollAnimation
-                                    loops: Animation.Infinite
-                                    running: titleMainText.implicitWidth > titleClipArea.width && menuHoverHandler.hovered
-
-                                    onRunningChanged: {
-                                        if (!running) marqueeTrack.x = 0;
-                                    }
-
-                                    PauseAnimation { duration: 2500 }
-                                    NumberAnimation {
-                                        from: 0
-                                        to: -(titleMainText.implicitWidth + titleClipArea.marqueeSpacing)
-                                        duration: (titleMainText.implicitWidth + titleClipArea.marqueeSpacing) * 25
-                                    }
-                                    PropertyAction { target: marqueeTrack; property: "x"; value: 0 }
-                                }
-                            }
+                            text: isMediaActive ? (targetPlayer ? targetPlayer.trackTitle : "") : I18n.t("music.nothing_playing")
+                            color: ThemeBackend.text
+                            font.family: ThemeBackend.fontFamily
+                            font.weight: Font.Black
+                            font.pixelSize: sideMusicPopout.s(13)
+                            marqueeSpacing: sideMusicPopout.s(40)
+                            pauseDuration: 2500
+                            speed: 25
+                            active: menuHoverHandler.hovered
                         }
 
                         Text {
@@ -579,29 +540,16 @@ PanelWindow {
                     }
                 }
 
-                Draggable {
+                WavySeekBar {
                     id: popupProgBar
                     Layout.fillWidth: true
-                    Layout.preferredHeight: sideMusicPopout.s(12)
+                    Layout.preferredHeight: sideMusicPopout.s(26)
                     Layout.alignment: Qt.AlignVCenter
                     from: 0.0
                     to: (targetPlayer && typeof targetPlayer.length === "number" && !isNaN(targetPlayer.length)) ? targetPlayer.length : 100.0
                     value: sideMusicPopout.currentLivePosition
-                    showValueBubble: false
-                    showTooltip: false
-                    valueFormatter: function(v) { return "" }
-                    backgroundColor: ThemeBackend.surface0
-                    accentColor: ThemeBackend.mauve
-                    gradColor1: Qt.lighter(ThemeBackend.blue, 1.2)
-                    gradColor2: Qt.lighter(ThemeBackend.mauve, 1.15)
-                    gradColor3: Qt.lighter(ThemeBackend.mauve, 1.15)
-                    cornerRadius: ThemeBackend.borderRadius
-                    handleSize: sideMusicPopout.s(12)
-
-                    handleColor: Qt.lighter(ThemeBackend.blue, 1.15)
-                    handleHoverColor: Qt.lighter(ThemeBackend.mauve, 1.65)
-                    handleDragColor: Qt.lighter(ThemeBackend.mauve, 1.65)
-                    handleBorderColor: Qt.rgba(0, 0, 0, 0.2)
+                    playing: sideMusicPopout.isPlaying
+                    waveColor: ThemeBackend.mauve
 
                     property bool seekPending: false
 
@@ -620,12 +568,9 @@ PanelWindow {
                         }
                     }
 
-                    onDragStarted: {
-                        SideMusicController.cancelHide();
-                    }
-
-                    onDragFinished: {
-                        SideMusicController.requestHide();
+                    onIsDraggingChanged: {
+                        if (isDragging) SideMusicController.cancelHide();
+                        else SideMusicController.requestHide();
                     }
 
                     onMoved: val => {

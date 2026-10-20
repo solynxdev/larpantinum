@@ -16,7 +16,7 @@ Item {
 
     readonly property bool isGuidePopup: true
 
-    signal requestLoadAll()
+    signal requestLoad(int order)
 
     property int activationCounter: 0
     property var appPaths: Caching
@@ -24,9 +24,6 @@ Item {
     property int currentSubTab: 0
     property int expandedTab: -1
 
-    property real colorBlend: 0.0
-    property color ambientPurple: Qt.tint(ThemeBackend.mauve, Qt.rgba(ThemeBackend.pink.r, ThemeBackend.pink.g, ThemeBackend.pink.b, colorBlend))
-    property color ambientBlue: Qt.tint(ThemeBackend.blue, Qt.rgba(ThemeBackend.sapphire.r, ThemeBackend.sapphire.g, ThemeBackend.sapphire.b, colorBlend))
     property int chargingSoundHandle: -1
 
     property real introBase: 0.0
@@ -44,6 +41,43 @@ Item {
 
     property var searchIndexMap: ({})
     property var searchIndex: []
+    property int searchLoadCursor: 0
+
+    readonly property int totalTabSlots: {
+        let n = 0;
+        for (let i = 0; i < tabsModel.length; i++) {
+            let st = tabsModel[i].subtabs;
+            n += st && st.length > 0 ? st.length : 1;
+        }
+        return n;
+    }
+
+    function tabLoadOrder(tab, sub) {
+        let n = 0;
+        for (let i = 0; i < tab && i < tabsModel.length; i++) {
+            let st = tabsModel[i].subtabs;
+            n += st && st.length > 0 ? st.length : 1;
+        }
+        return n + Math.max(0, sub);
+    }
+
+    function searchHaystack(item) {
+        if (item.hay === undefined) {
+            item.hay = [
+                item.title, resolveI18nText(item.title),
+                item.desc || item.description, resolveI18nText(item.desc || item.description),
+                resolveTabTitle(item.tab), resolveSubtabTitle(item.tab, item.subtab),
+                item.tab, item.subtab, item.keywords
+            ].join("\n").toLowerCase();
+        }
+        return item.hay;
+    }
+
+    function clearSearchHaystacks() {
+        for (let k in searchIndexMap) {
+            delete searchIndexMap[k].hay;
+        }
+    }
 
     function resolveI18nText(text) {
         if (!text) return "";
@@ -303,23 +337,7 @@ Item {
     readonly property var filteredSearchResults: {
         let q = searchQuery.trim().toLowerCase();
         if (q === "") return [];
-        return searchIndex.filter(item => {
-            let rawT = (item.title || "").toLowerCase();
-            let trT = resolveI18nText(item.title).toLowerCase();
-            let rawD = (item.desc || item.description || "").toLowerCase();
-            let trD = resolveI18nText(item.desc || item.description).toLowerCase();
-            let tabT = resolveTabTitle(item.tab).toLowerCase();
-            let subT = resolveSubtabTitle(item.tab, item.subtab).toLowerCase();
-            let rawTb = (item.tab || "").toLowerCase();
-            let rawStb = (item.subtab || "").toLowerCase();
-            let kw = String(item.keywords || "").toLowerCase();
-
-            return trT.indexOf(q) !== -1 || rawT.indexOf(q) !== -1 ||
-                   trD.indexOf(q) !== -1 || rawD.indexOf(q) !== -1 ||
-                   tabT.indexOf(q) !== -1 || subT.indexOf(q) !== -1 ||
-                   rawTb.indexOf(q) !== -1 || rawStb.indexOf(q) !== -1 ||
-                   kw.indexOf(q) !== -1;
-        });
+        return searchIndex.filter(item => searchHaystack(item).indexOf(q) !== -1);
     }
 
     readonly property var groupedSearchResults: {
@@ -344,7 +362,6 @@ Item {
                     tabIndex: tIdx,
                     title: isKnown ? resolveTabTitle(tModel.key || tModel.id) : I18n.t("guide.tabs.general", "General"),
                     icon: isKnown ? (tModel.icon || "󰒓") : "󰒓",
-                    iconOffsetX: isKnown ? (tModel.iconOffsetX ?? 0) : 0,
                     directItems: [],
                     subgroupsMap: {}
                 };
@@ -362,7 +379,6 @@ Item {
                         subIndex: sIdx,
                         title: resolveSubtabTitle(tModel.key || tModel.id, stModel.key || stModel.id),
                         icon: stModel.icon || "󰒓",
-                        iconOffsetX: stModel.iconOffsetX ?? 0,
                         items: []
                     };
                 }
@@ -380,7 +396,6 @@ Item {
                 tabIndex: tg.tabIndex,
                 title: tg.title,
                 icon: tg.icon,
-                iconOffsetX: tg.iconOffsetX,
                 directItems: tg.directItems,
                 subgroups: subList
             };
@@ -437,40 +452,40 @@ Item {
     }
 
     function ensureSearchItemVisible(itemObj) {
-        if (!itemObj || !searchResultsFlickable) return;
+        if (!itemObj || !sidebar.searchResults) return;
         try {
-            let mapped = itemObj.mapToItem(searchResultsCol, 0, 0);
+            let mapped = itemObj.mapToItem(sidebar.searchResults.column, 0, 0);
             let itemY = mapped.y;
             let itemH = itemObj.height;
-            let viewTop = searchResultsFlickable.contentY;
-            let viewHeight = searchResultsFlickable.height;
+            let viewTop = sidebar.searchResults.contentY;
+            let viewHeight = sidebar.searchResults.height;
             let viewBottom = viewTop + viewHeight;
 
             if (itemY < viewTop) {
-                searchResultsFlickable.contentY = Math.max(0, itemY - root.s(8));
+                sidebar.searchResults.contentY = Math.max(0, itemY - root.s(8));
             } else if (itemY + itemH > viewBottom) {
-                let maxScroll = Math.max(0, searchResultsFlickable.contentHeight - viewHeight);
-                searchResultsFlickable.contentY = Math.min(maxScroll, itemY + itemH - viewHeight + root.s(8));
+                let maxScroll = Math.max(0, sidebar.searchResults.contentHeight - viewHeight);
+                sidebar.searchResults.contentY = Math.min(maxScroll, itemY + itemH - viewHeight + root.s(8));
             }
         } catch(e) {}
     }
 
     function ensureTabVisible(idx) {
-        if (!tabsFlickable || idx < 0 || !tabsRepeater || idx >= tabsRepeater.count) return;
+        if (!sidebar.tabsView || idx < 0 || !sidebar.tabsItems || idx >= sidebar.tabsItems.count) return;
         try {
-            let item = tabsRepeater.itemAt(idx);
+            let item = sidebar.tabsItems.itemAt(idx);
             if (!item) return;
             let itemY = item.y;
             let itemH = item.height;
-            let viewTop = tabsFlickable.contentY;
-            let viewHeight = tabsFlickable.height;
+            let viewTop = sidebar.tabsView.contentY;
+            let viewHeight = sidebar.tabsView.height;
             let viewBottom = viewTop + viewHeight;
 
             if (itemY < viewTop) {
-                tabsFlickable.contentY = Math.max(0, itemY - root.s(8));
+                sidebar.tabsView.contentY = Math.max(0, itemY - root.s(8));
             } else if (itemY + itemH > viewBottom) {
-                let maxScroll = Math.max(0, tabsFlickable.contentHeight - viewHeight);
-                tabsFlickable.contentY = Math.min(maxScroll, itemY + itemH - viewHeight + root.s(8));
+                let maxScroll = Math.max(0, sidebar.tabsView.contentHeight - viewHeight);
+                sidebar.tabsView.contentY = Math.min(maxScroll, itemY + itemH - viewHeight + root.s(8));
             }
         } catch(e) {}
     }
@@ -481,13 +496,16 @@ Item {
     }
 
     function openSearch() {
-        root.requestLoadAll();
         searchRebuildTimer.stop();
         rebuildSearchIndex();
         searchClearTimer.stop();
         searchActive = true;
         searchSelectedIndex = -1;
         searchFocusTimer.restart();
+        if (searchLoadCursor < totalTabSlots && !searchLoadTimer.running) {
+            searchLoadTimer.interval = 280;
+            searchLoadTimer.restart();
+        }
     }
 
     function closeSearch() {
@@ -539,40 +557,39 @@ Item {
     }
 
     property var tabsModel: [
-        { id: "Welcome", key: "welcome", name: "Welcome", icon: "󰋜", file: "WelcomeTab.qml", iconOffsetX: -1 },
-        { id: "General", key: "general", name: "General", icon: "󰒓", file: "general/GeneralTab.qml", iconOffsetX: 0 },
+        { id: "Welcome", key: "welcome", name: "Welcome", icon: "󰋜", file: "WelcomeTab.qml" },
+        { id: "General", key: "general", name: "General", icon: "󰒓", file: "general/GeneralTab.qml" },
         { 
             id: "Display", 
             key: "display", 
             name: "Display", 
             icon: "󰃠", 
             file: "display/DisplayMainTab.qml", 
-            iconOffsetX: 0,
             subtabs: [
-                { id: "DisplayGeneral", key: "display_general", name: "Display", icon: "󰃠", file: "display/DisplayMainTab.qml", iconOffsetX: 1 },
-                { id: "DisplayWidgets", key: "display_widgets", name: "Widgets", icon: "󰕰", file: "display/DisplayWidgetsTab.qml", iconOffsetX: 0 }
+                { id: "DisplayGeneral", key: "display_general", name: "Display", icon: "󰃠", file: "display/DisplayMainTab.qml" },
+                { id: "DisplayWidgets", key: "display_widgets", name: "Widgets", icon: "󰕰", file: "display/DisplayWidgetsTab.qml" },
+                { id: "DisplayLockscreen", key: "display_lockscreen", name: "Lock screen", icon: "󰌾", file: "display/DisplayLockscreenTab.qml" }
             ]
         },
-        { id: "Theme", key: "theme", name: "Theme", icon: "󰏘", file: "theme/ThemeTab.qml", iconOffsetX: 0 },
+        { id: "Theme", key: "theme", name: "Theme", icon: "󰏘", file: "theme/ThemeTab.qml" },
         { 
             id: "Bar", 
             key: "bar", 
             name: "Bar", 
             icon: "󰹑", 
             file: "bar/BarGeneralTab.qml", 
-            iconOffsetX: -2,
             subtabs: [
-                { id: "BarGeneral", key: "bar_general", name: "General", icon: "󰒓", file: "bar/BarGeneralTab.qml", iconOffsetX: 1 },
-                { id: "BarModules", key: "bar_modules", name: "Modules", icon: "󰮯", file: "bar/BarModulesTab.qml", iconOffsetX: 0 }
+                { id: "BarGeneral", key: "bar_general", name: "General", icon: "󰒓", file: "bar/BarGeneralTab.qml" },
+                { id: "BarModules", key: "bar_modules", name: "Modules", icon: "󰮯", file: "bar/BarModulesTab.qml" }
             ]
         },
-        { id: "Launcher", key: "launcher", name: "Launcher", icon: "󰵆", file: "LauncherTab.qml", iconOffsetX: 0 },
-        { id: "Dock", key: "dock", name: "Dock", icon: "󰮯", file: "DockTab.qml", iconOffsetX: 0 },
-        { id: "On-Screen Display", key: "osd", name: "On-Screen Display", icon: "󰕾", file: "OnScreenDisplayTab.qml", iconOffsetX: 0 },
-        { id: "Notifications", key: "notifications", name: "Notifications", icon: "󰂚", file: "notifications/NotificationsTab.qml", iconOffsetX: 0 },
-        { id: "Wellbeing", key: "wellbeing", name: "Wellbeing", icon: "󰄉", file: "wellbeing/DigitalWellbeingTab.qml", iconOffsetX: 0 },        
-        { id: "Idle", key: "idle", name: "Idle", icon: "󰒲", file: "IdleTab.qml", iconOffsetX: 0 },
-        { id: "About", key: "about", name: "About", icon: "󰋽", file: "AboutTab.qml", iconOffsetX: 0 }
+        { id: "Launcher", key: "launcher", name: "Launcher", icon: "󰵆", file: "LauncherTab.qml" },
+        { id: "Dock", key: "dock", name: "Dock", icon: "󰮯", file: "DockTab.qml" },
+        { id: "On-Screen Display", key: "osd", name: "On-Screen Display", icon: "󰕾", file: "OnScreenDisplayTab.qml" },
+        { id: "Notifications", key: "notifications", name: "Notifications", icon: "󰂚", file: "notifications/NotificationsTab.qml" },
+        { id: "Wellbeing", key: "wellbeing", name: "Wellbeing", icon: "󰄉", file: "wellbeing/DigitalWellbeingTab.qml" },        
+        { id: "Idle", key: "idle", name: "Idle", icon: "󰒲", file: "IdleTab.qml" },
+        { id: "About", key: "about", name: "About", icon: "󰋽", file: "AboutTab.qml" }
     ]
 
     StackView.onStatusChanged: {
@@ -684,6 +701,10 @@ Item {
         introTabs = 0.0;
         startupSequence.restart();
         Updater.checkUpdate();
+        if (searchLoadCursor < totalTabSlots && !searchLoadTimer.running) {
+            searchLoadTimer.interval = 1400;
+            searchLoadTimer.restart();
+        }
     }
 
     function nextTab() {
@@ -736,8 +757,8 @@ Item {
         interval: 40
         repeat: false
         onTriggered: {
-            if (settingsSearchInput) {
-                settingsSearchInput.forceInputFocus();
+            if (sidebar.searchInput) {
+                sidebar.searchInput.forceInputFocus();
             }
         }
     }
@@ -751,11 +772,26 @@ Item {
 
     Timer {
         id: searchClearTimer
-        interval: 260
+        interval: 900
         repeat: false
         onTriggered: {
             searchQuery = "";
-            if (settingsSearchInput) settingsSearchInput.text = "";
+            if (sidebar.searchInput) sidebar.searchInput.text = "";
+        }
+    }
+
+    Timer {
+        id: searchLoadTimer
+        interval: 280
+        repeat: true
+        onTriggered: {
+            if (startupSequence.running || closeSequence.running) return;
+            interval = 100;
+            if (root.searchLoadCursor >= root.totalTabSlots) {
+                stop();
+                return;
+            }
+            root.requestLoad(root.searchLoadCursor++);
         }
     }
 
@@ -777,6 +813,7 @@ Item {
             highlightTimer.stop();
             searchClearTimer.stop();
             searchRebuildTimer.stop();
+            clearSearchHaystacks();
             rebuildSearchIndex();
             pendingHighlightItem = null;
             introBase = 0.0;
@@ -786,7 +823,7 @@ Item {
             searchActive = false;
             searchQuery = "";
             searchSelectedIndex = -1;
-            if (settingsSearchInput) settingsSearchInput.text = "";
+            if (sidebar.searchInput) sidebar.searchInput.text = "";
             if (root.chargingSoundHandle !== -1 && typeof Sounds !== "undefined") {
                 Sounds.stopSfx(root.chargingSoundHandle);
                 root.chargingSoundHandle = -1;
@@ -795,6 +832,10 @@ Item {
     }
 
     Component.onCompleted: {
+        if (searchLoadCursor < totalTabSlots && !searchLoadTimer.running) {
+            searchLoadTimer.interval = 300;
+            searchLoadTimer.restart();
+        }
         if (visible) {
             forceActiveFocus();
             focusTimer.restart();
@@ -879,13 +920,6 @@ Item {
         }
         prevTab();
         event.accepted = true;
-    }
-
-    SequentialAnimation on colorBlend {
-        loops: Animation.Infinite
-        running: root.visible
-        NumberAnimation { to: 1.0; duration: 15000; easing.type: Easing.InOutSine }
-        NumberAnimation { to: 0.0; duration: 15000; easing.type: Easing.InOutSine }
     }
 
     Timer {
@@ -1048,1132 +1082,29 @@ Item {
         Rectangle {
             anchors.fill: parent
             radius: ThemeBackend.clampedBorderRadius
-            color: ThemeBackend.base
+            color: Qt.alpha(ThemeBackend.base, ThemeBackend.elementOpacity)
 
-            property real time: 0
-            NumberAnimation on time {
-                from: 0
-                to: Math.PI * 2
-                duration: 20000
-                loops: Animation.Infinite
-                running: root.visible
+            WallpaperBlur {
+                z: -1
+                anchors.fill: parent
+                topLeftRadius: parent.topLeftRadius
+                topRightRadius: parent.topRightRadius
+                bottomLeftRadius: parent.bottomLeftRadius
+                bottomRightRadius: parent.bottomRightRadius
             }
 
-            Rectangle {
+            GuideSidebar {
                 id: sidebar
-                anchors.left: parent.left
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                width: root.searchActive ? root.s(340) : root.s(260)
-                
-                topLeftRadius: ThemeBackend.clampedBorderRadius
-                bottomLeftRadius: ThemeBackend.clampedBorderRadius
-                topRightRadius: 0
-                bottomRightRadius: 0
-                
-                color: Qt.alpha(ThemeBackend.surface0, 0.4)
-                opacity: introSidebar
-                transform: Translate { x: root.s(-30) * (1.0 - introSidebar) }
-
-                Behavior on width {
-                    NumberAnimation {
-                        id: sidebarWidthAnim
-                        duration: 240
-                        easing.type: Easing.OutCubic
-                    }
-                }
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: root.s(15)
-                    spacing: root.s(10)
-
-                    Item {
-                        id: searchHeader
-                        Layout.fillWidth: true
-                        implicitHeight: root.s(36)
-                        Layout.preferredHeight: root.s(36)
-
-                        Text {
-                            id: settingsTitleText
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: I18n.t("guide.settings", "Settings")
-                            font.family: ThemeBackend.fontFamily
-                            font.pixelSize: root.s(15)
-                            font.bold: true
-                            color: ThemeBackend.text
-                            opacity: root.searchActive ? 0.0 : 1.0
-                            scale: root.searchActive ? 0.92 : 1.0
-                            visible: opacity > 0.001
-
-                            Behavior on opacity {
-                                NumberAnimation {
-                                    duration: 180
-                                    easing.type: Easing.OutCubic
-                                }
-                            }
-                            Behavior on scale {
-                                NumberAnimation {
-                                    duration: 220
-                                    easing.type: Easing.OutCubic
-                                }
-                            }
-                        }
-
-                        Item {
-                            id: searchMorphBox
-                            property real openProgress: root.searchActive ? 1.0 : 0.0
-                            Behavior on openProgress { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
-
-                            anchors.right: parent.right
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: root.s(36) + (parent.width - root.s(36)) * openProgress
-                            height: root.s(36)
-                            clip: true
-
-                            Input {
-                                id: settingsSearchInput
-                                anchors.fill: parent
-                                implicitHeight: root.s(36)
-                                placeholderText: I18n.t("guide.search.placeholder", "Search settings...")
-                                fontPixelSize: root.s(12)
-                                baseColor: Qt.alpha(ThemeBackend.surface0, 0.7)
-                                accentColor: ThemeBackend.mauve
-                                textColor: ThemeBackend.text
-                                subTextColor: ThemeBackend.subtext0
-                                borderColor: Qt.alpha(ThemeBackend.surface2, 0.5)
-                                cornerRadius: ThemeBackend.borderRadius
-                                opacity: root.searchActive ? 1.0 : 0.0
-                                visible: opacity > 0.001
-                                enabled: root.searchActive
-
-                                Behavior on opacity {
-                                    NumberAnimation {
-                                        duration: 180
-                                        easing.type: Easing.OutCubic
-                                    }
-                                }
-
-                                onTextEdited: (txt) => {
-                                    root.searchQuery = txt;
-                                    root.searchSelectedIndex = -1;
-                                }
-
-                                Keys.onEscapePressed: (event) => {
-                                    root.closeSearch();
-                                    event.accepted = true;
-                                }
-                                Keys.onDownPressed: (event) => {
-                                    root.navigateSearch(1);
-                                    event.accepted = true;
-                                }
-                                Keys.onUpPressed: (event) => {
-                                    root.navigateSearch(-1);
-                                    event.accepted = true;
-                                }
-                                Keys.onReturnPressed: (event) => {
-                                    root.activateSelectedSearch();
-                                    event.accepted = true;
-                                }
-                                Keys.onEnterPressed: (event) => {
-                                    root.activateSelectedSearch();
-                                    event.accepted = true;
-                                }
-                            }
-
-                            IconButton {
-                                id: closeSearchBtn
-                                anchors.right: parent.right
-                                anchors.rightMargin: root.s(4)
-                                anchors.verticalCenter: parent.verticalCenter
-                                size: root.s(28)
-                                cornerRadius: root.s(6)
-                                buttonIcon: "󰅖"
-                                iconFontSize: root.s(14)
-                                accentColor: "transparent"
-                                textColor: ThemeBackend.subtext0
-                                visible: opacity > 0.001
-                                opacity: root.searchActive ? 1.0 : 0.0
-                                enabled: root.searchActive
-                                z: 3
-
-                                Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-
-                                onClicked: root.closeSearch()
-                            }
-
-                            IconButton {
-                                id: searchBtn
-                                anchors.left: parent.left
-                                anchors.top: parent.top
-                                anchors.bottom: parent.bottom
-                                width: root.s(36)
-                                size: root.s(36)
-                                cornerRadius: ThemeBackend.borderRadius
-                                buttonIcon: "󰍉"
-                                iconFontSize: root.s(16)
-                                accentColor: Qt.alpha(ThemeBackend.surface0, 0.7)
-                                textColor: ThemeBackend.text
-                                visible: opacity > 0.001
-                                opacity: root.searchActive ? 0.0 : 1.0
-                                enabled: !root.searchActive
-
-                                Behavior on opacity {
-                                    NumberAnimation {
-                                        duration: 180
-                                        easing.type: Easing.OutCubic
-                                    }
-                                }
-
-                                onClicked: {
-                                    root.openSearch();
-                                }
-                            }
-                        }
-                    }
-
-                    Item {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-
-                        Flickable {
-                            id: searchResultsFlickable
-                            anchors.fill: parent
-                            visible: opacity > 0.001
-                            opacity: root.searchActive ? 1.0 : 0.0
-                            contentHeight: searchResultsCol.implicitHeight + root.s(10)
-                            contentWidth: width
-                            clip: true
-                            boundsBehavior: Flickable.StopAtBounds
-
-                            Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-
-                            ScrollBar.vertical: ScrollBar {
-                                active: searchResultsFlickable.moving || searchResultsFlickable.movingVertically
-                                width: root.s(4)
-                                policy: ScrollBar.AsNeeded
-                                contentItem: Rectangle {
-                                    implicitWidth: root.s(4)
-                                    radius: root.s(2)
-                                    color: ThemeBackend.surface2
-                                }
-                            }
-
-                            ColumnLayout {
-                                id: searchResultsCol
-                                width: parent.width
-                                spacing: root.s(8)
-
-                                Text {
-                                    visible: root.searchActive && root.searchQuery.trim() === ""
-                                    Layout.fillWidth: true
-                                    Layout.topMargin: root.s(24)
-                                    horizontalAlignment: Text.AlignHCenter
-                                    text: I18n.t("guide.search.prompt", "Type to search settings...")
-                                    font.family: ThemeBackend.fontFamily
-                                    font.pixelSize: root.s(12)
-                                    color: ThemeBackend.subtext0
-                                }
-
-                                Text {
-                                    visible: root.searchActive && root.searchQuery.trim() !== "" && root.filteredSearchResults.length === 0
-                                    Layout.fillWidth: true
-                                    Layout.topMargin: root.s(24)
-                                    horizontalAlignment: Text.AlignHCenter
-                                    text: I18n.t("guide.search.no_results", "No settings found")
-                                    font.family: ThemeBackend.fontFamily
-                                    font.pixelSize: root.s(12)
-                                    color: ThemeBackend.subtext0
-                                }
-
-                                Repeater {
-                                    id: searchTabsRepeater
-                                    model: root.groupedSearchResults
-                                    delegate: ColumnLayout {
-                                        id: tabGroup
-                                        required property var modelData
-                                        required property int index
-
-                                        Layout.fillWidth: true
-                                        spacing: root.s(4)
-
-                                        Rectangle {
-                                            id: tabHeaderItem
-                                            Layout.fillWidth: true
-                                            Layout.preferredHeight: root.s(44)
-                                            implicitHeight: root.s(44)
-                                            radius: ThemeBackend.borderRadius
-                                            z: 1
-
-                                            color: tabHeaderItemMa.containsMouse ? Qt.alpha(ThemeBackend.surface1, 0.5) : "transparent"
-                                            Behavior on color { ColorAnimation { duration: 150 } }
-
-                                            scale: tabHeaderItemMa.pressed ? 0.98 : 1.0
-                                            Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutQuint } }
-
-                                            RowLayout {
-                                                anchors.fill: parent
-                                                anchors.leftMargin: root.s(10)
-                                                anchors.rightMargin: root.s(14)
-                                                spacing: root.s(10)
-
-                                                IconButton {
-                                                    enabled: false
-                                                    size: root.s(32)
-                                                    Layout.preferredWidth: root.s(32)
-                                                    Layout.preferredHeight: root.s(32)
-                                                    Layout.alignment: Qt.AlignVCenter
-                                                    cornerRadius: ThemeBackend.borderRadius
-                                                    buttonIcon: tabGroup.modelData.icon || "󰒓"
-                                                    iconOffsetX: tabGroup.modelData.iconOffsetX ?? 0
-                                                    iconFontSize: root.s(16)
-                                                    accentColor: ThemeBackend.surface0
-                                                    textColor: "#ffffff"
-                                                }
-
-                                                Text {
-                                                    text: tabGroup.modelData.title
-                                                    font.family: ThemeBackend.fontFamily
-                                                    font.weight: Font.Medium
-                                                    font.pixelSize: root.s(13)
-                                                    color: tabHeaderItemMa.containsMouse ? ThemeBackend.text : ThemeBackend.subtext0
-                                                    Layout.fillWidth: true
-                                                    Layout.alignment: Qt.AlignVCenter
-                                                    elide: Text.ElideRight
-                                                    Behavior on color { ColorAnimation { duration: 150 } }
-                                                }
-                                            }
-
-                                            MouseArea {
-                                                id: tabHeaderItemMa
-                                                anchors.fill: parent
-                                                hoverEnabled: true
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: {
-                                                    root.gotoTab(tabGroup.modelData.tabKey);
-                                                    root.closeSearch();
-                                                }
-                                            }
-                                        }
-
-                                        RowLayout {
-                                            id: tabIndentRow
-                                            visible: (tabGroup.modelData.directItems.length + tabGroup.modelData.subgroups.length) > 0
-                                            Layout.fillWidth: true
-                                            spacing: root.s(6)
-
-                                            Item {
-                                                Layout.preferredWidth: root.s(20)
-                                                Layout.fillHeight: true
-
-                                                Rectangle {
-                                                    anchors.horizontalCenter: parent.horizontalCenter
-                                                    anchors.top: parent.top
-                                                    anchors.bottom: parent.bottom
-                                                    anchors.topMargin: root.s(2)
-                                                    anchors.bottomMargin: root.s(2)
-                                                    width: Math.max(1, root.s(2))
-                                                    radius: root.s(1)
-                                                    color: Qt.rgba(ThemeBackend.surface2.r, ThemeBackend.surface2.g, ThemeBackend.surface2.b, 0.7)
-                                                }
-                                            }
-
-                                            ColumnLayout {
-                                                Layout.fillWidth: true
-                                                spacing: root.s(4)
-
-                                                Repeater {
-                                                    id: directItemsRepeater
-                                                    model: tabGroup.modelData.directItems
-                                                    delegate: Rectangle {
-                                                        id: directItemRow
-                                                        required property var modelData
-                                                        required property int index
-
-                                                        property bool isSelected: root.searchSelectedIndex >= 0 &&
-                                                                                  root.searchSelectedIndex < root.flatSearchResults.length &&
-                                                                                  (root.flatSearchResults[root.searchSelectedIndex] === directItemRow.modelData ||
-                                                                                   (root.flatSearchResults[root.searchSelectedIndex] && root.flatSearchResults[root.searchSelectedIndex].key === directItemRow.modelData.key) ||
-                                                                                   (root.flatSearchResults[root.searchSelectedIndex] && root.flatSearchResults[root.searchSelectedIndex].id === directItemRow.modelData.id))
-
-                                                        onIsSelectedChanged: {
-                                                            if (isSelected) {
-                                                                root.ensureSearchItemVisible(directItemRow);
-                                                            }
-                                                        }
-
-                                                        Layout.fillWidth: true
-                                                        implicitHeight: (directItemRow.modelData && (directItemRow.modelData.desc || directItemRow.modelData.description)) ? root.s(48) : root.s(38)
-                                                        radius: ThemeBackend.borderRadius
-                                                        color: directItemRow.isSelected
-                                                            ? ThemeBackend.mauve
-                                                            : (directItemMa.containsMouse ? Qt.alpha(ThemeBackend.surface1, 0.6) : Qt.alpha(ThemeBackend.surface0, 0.35))
-                                                        border.color: "transparent"
-
-                                                        Behavior on color { ColorAnimation { duration: 150 } }
-
-                                                        MouseArea {
-                                                            id: directItemMa
-                                                            anchors.fill: parent
-                                                            hoverEnabled: true
-                                                            cursorShape: Qt.PointingHandCursor
-                                                            onClicked: root.selectSearchResult(directItemRow.modelData)
-                                                        }
-
-                                                        RowLayout {
-                                                            anchors.fill: parent
-                                                            anchors.leftMargin: root.s(8) + (directItemRow.isSelected ? root.s(4) : 0)
-                                                            anchors.rightMargin: root.s(8)
-                                                            anchors.topMargin: root.s(6)
-                                                            anchors.bottomMargin: root.s(6)
-                                                            spacing: root.s(8)
-
-                                                            Behavior on anchors.leftMargin { NumberAnimation { duration: 250; easing.type: Easing.OutQuint } }
-
-                                                            IconButton {
-                                                                enabled: false
-                                                                size: root.s(28)
-                                                                Layout.preferredWidth: root.s(28)
-                                                                Layout.preferredHeight: root.s(28)
-                                                                Layout.alignment: Qt.AlignVCenter
-                                                                cornerRadius: root.s(6)
-                                                                buttonIcon: directItemRow.modelData.icon || "󰒓"
-                                                                iconFontSize: root.s(14)
-                                                                accentColor: ThemeBackend.surface0
-                                                                textColor: "#ffffff"
-                                                            }
-
-                                                            ColumnLayout {
-                                                                Layout.fillWidth: true
-                                                                Layout.alignment: Qt.AlignVCenter
-                                                                spacing: 0
-
-                                                                Text {
-                                                                    Layout.fillWidth: true
-                                                                    text: root.resolveI18nText(directItemRow.modelData.title)
-                                                                    font.family: ThemeBackend.fontFamily
-                                                                    font.pixelSize: root.s(12)
-                                                                    font.bold: true
-                                                                    color: directItemRow.isSelected ? ThemeBackend.crust : ThemeBackend.text
-                                                                    elide: Text.ElideRight
-
-                                                                    Behavior on color { ColorAnimation { duration: 150 } }
-                                                                }
-
-                                                                Text {
-                                                                    Layout.fillWidth: true
-                                                                    text: root.resolveI18nText(directItemRow.modelData.desc || directItemRow.modelData.description || "")
-                                                                    visible: text !== ""
-                                                                    font.family: ThemeBackend.fontFamily
-                                                                    font.pixelSize: root.s(10)
-                                                                    color: directItemRow.isSelected ? Qt.alpha(ThemeBackend.crust, 0.75) : ThemeBackend.subtext0
-                                                                    elide: Text.ElideRight
-
-                                                                    Behavior on color { ColorAnimation { duration: 150 } }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-
-                                                Repeater {
-                                                    id: subGroupRepeater
-                                                    model: tabGroup.modelData.subgroups
-                                                    delegate: ColumnLayout {
-                                                        id: subGroup
-                                                        required property var modelData
-                                                        required property int index
-
-                                                        Layout.fillWidth: true
-                                                        spacing: root.s(4)
-
-                                                        Rectangle {
-                                                            id: subtabHeaderItem
-                                                            Layout.fillWidth: true
-                                                            Layout.preferredHeight: root.s(36)
-                                                            implicitHeight: root.s(36)
-                                                            radius: ThemeBackend.borderRadius
-                                                            z: 1
-
-                                                            color: subtabHeaderItemMa.containsMouse ? Qt.alpha(ThemeBackend.surface1, 0.5) : "transparent"
-                                                            Behavior on color { ColorAnimation { duration: 150 } }
-
-                                                            scale: subtabHeaderItemMa.pressed ? 0.98 : 1.0
-                                                            Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutQuint } }
-
-                                                            RowLayout {
-                                                                anchors.fill: parent
-                                                                anchors.leftMargin: root.s(8)
-                                                                anchors.rightMargin: root.s(10)
-                                                                spacing: root.s(8)
-
-                                                                IconButton {
-                                                                    enabled: false
-                                                                    size: root.s(26)
-                                                                    Layout.preferredWidth: root.s(26)
-                                                                    Layout.preferredHeight: root.s(26)
-                                                                    Layout.alignment: Qt.AlignVCenter
-                                                                    cornerRadius: ThemeBackend.borderRadius
-                                                                    buttonIcon: subGroup.modelData.icon || "󰒓"
-                                                                    iconOffsetX: subGroup.modelData.iconOffsetX ?? 0
-                                                                    iconFontSize: root.s(13)
-                                                                    accentColor: ThemeBackend.surface0
-                                                                    textColor: "#ffffff"
-                                                                }
-
-                                                                Text {
-                                                                    text: subGroup.modelData.title
-                                                                    font.family: ThemeBackend.fontFamily
-                                                                    font.weight: Font.Medium
-                                                                    font.pixelSize: root.s(12)
-                                                                    color: subtabHeaderItemMa.containsMouse ? ThemeBackend.text : ThemeBackend.subtext0
-                                                                    Layout.fillWidth: true
-                                                                    Layout.alignment: Qt.AlignVCenter
-                                                                    elide: Text.ElideRight
-                                                                    Behavior on color { ColorAnimation { duration: 150 } }
-                                                                }
-                                                            }
-
-                                                            MouseArea {
-                                                                id: subtabHeaderItemMa
-                                                                anchors.fill: parent
-                                                                hoverEnabled: true
-                                                                cursorShape: Qt.PointingHandCursor
-                                                                onClicked: {
-                                                                    root.gotoTab(tabGroup.modelData.tabKey, subGroup.modelData.subKey);
-                                                                    root.closeSearch();
-                                                                }
-                                                            }
-                                                        }
-
-                                                        RowLayout {
-                                                            id: subIndentRow
-                                                            visible: subGroup.modelData.items.length > 0
-                                                            Layout.fillWidth: true
-                                                            spacing: root.s(6)
-
-                                                            Item {
-                                                                Layout.preferredWidth: root.s(20)
-                                                                Layout.fillHeight: true
-
-                                                                Rectangle {
-                                                                    anchors.horizontalCenter: parent.horizontalCenter
-                                                                    anchors.top: parent.top
-                                                                    anchors.bottom: parent.bottom
-                                                                    anchors.topMargin: root.s(2)
-                                                                    anchors.bottomMargin: root.s(2)
-                                                                    width: Math.max(1, root.s(2))
-                                                                    radius: root.s(1)
-                                                                    color: Qt.rgba(ThemeBackend.surface2.r, ThemeBackend.surface2.g, ThemeBackend.surface2.b, 0.7)
-                                                                }
-                                                            }
-
-                                                            ColumnLayout {
-                                                                Layout.fillWidth: true
-                                                                spacing: root.s(4)
-
-                                                                Repeater {
-                                                                    id: subGroupItemsRepeater
-                                                                    model: subGroup.modelData.items
-                                                                    delegate: Rectangle {
-                                                                        id: subItemRow
-                                                                        required property var modelData
-                                                                        required property int index
-
-                                                                        property bool isSelected: root.searchSelectedIndex >= 0 &&
-                                                                                                  root.searchSelectedIndex < root.flatSearchResults.length &&
-                                                                                                  (root.flatSearchResults[root.searchSelectedIndex] === subItemRow.modelData ||
-                                                                                                   (root.flatSearchResults[root.searchSelectedIndex] && root.flatSearchResults[root.searchSelectedIndex].key === subItemRow.modelData.key) ||
-                                                                                                   (root.flatSearchResults[root.searchSelectedIndex] && root.flatSearchResults[root.searchSelectedIndex].id === subItemRow.modelData.id))
-
-                                                                        onIsSelectedChanged: {
-                                                                            if (isSelected) {
-                                                                                root.ensureSearchItemVisible(subItemRow);
-                                                                            }
-                                                                        }
-
-                                                                        Layout.fillWidth: true
-                                                                        implicitHeight: (subItemRow.modelData && (subItemRow.modelData.desc || subItemRow.modelData.description)) ? root.s(48) : root.s(38)
-                                                                        radius: ThemeBackend.borderRadius
-                                                                        color: subItemRow.isSelected
-                                                                            ? ThemeBackend.mauve
-                                                                            : (subItemMa.containsMouse ? Qt.alpha(ThemeBackend.surface1, 0.6) : Qt.alpha(ThemeBackend.surface0, 0.35))
-                                                                        border.color: "transparent"
-
-                                                                        Behavior on color { ColorAnimation { duration: 150 } }
-
-                                                                        MouseArea {
-                                                                            id: subItemMa
-                                                                            anchors.fill: parent
-                                                                            hoverEnabled: true
-                                                                            cursorShape: Qt.PointingHandCursor
-                                                                            onClicked: root.selectSearchResult(subItemRow.modelData)
-                                                                        }
-
-                                                                        RowLayout {
-                                                                            anchors.fill: parent
-                                                                            anchors.leftMargin: root.s(8) + (subItemRow.isSelected ? root.s(4) : 0)
-                                                                            anchors.rightMargin: root.s(8)
-                                                                            anchors.topMargin: root.s(6)
-                                                                            anchors.bottomMargin: root.s(6)
-                                                                            spacing: root.s(8)
-
-                                                                            Behavior on anchors.leftMargin { NumberAnimation { duration: 250; easing.type: Easing.OutQuint } }
-
-                                                                            IconButton {
-                                                                                enabled: false
-                                                                                size: root.s(28)
-                                                                                Layout.preferredWidth: root.s(28)
-                                                                                Layout.preferredHeight: root.s(28)
-                                                                                Layout.alignment: Qt.AlignVCenter
-                                                                                cornerRadius: root.s(6)
-                                                                                buttonIcon: subItemRow.modelData.icon || "󰒓"
-                                                                                iconFontSize: root.s(14)
-                                                                                accentColor: ThemeBackend.surface0
-                                                                                textColor: "#ffffff"
-                                                                            }
-
-                                                                            ColumnLayout {
-                                                                                Layout.fillWidth: true
-                                                                                Layout.alignment: Qt.AlignVCenter
-                                                                                spacing: 0
-
-                                                                                Text {
-                                                                                    Layout.fillWidth: true
-                                                                                    text: root.resolveI18nText(subItemRow.modelData.title)
-                                                                                    font.family: ThemeBackend.fontFamily
-                                                                                    font.pixelSize: root.s(12)
-                                                                                    font.bold: true
-                                                                                    color: subItemRow.isSelected ? ThemeBackend.crust : ThemeBackend.text
-                                                                                    elide: Text.ElideRight
-
-                                                                                    Behavior on color { ColorAnimation { duration: 150 } }
-                                                                                }
-
-                                                                                Text {
-                                                                                    Layout.fillWidth: true
-                                                                                    text: root.resolveI18nText(subItemRow.modelData.desc || subItemRow.modelData.description || "")
-                                                                                    visible: text !== ""
-                                                                                    font.family: ThemeBackend.fontFamily
-                                                                                    font.pixelSize: root.s(10)
-                                                                                    color: subItemRow.isSelected ? Qt.alpha(ThemeBackend.crust, 0.75) : ThemeBackend.subtext0
-                                                                                    elide: Text.ElideRight
-
-                                                                                    Behavior on color { ColorAnimation { duration: 150 } }
-                                                                                }
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        Flickable {
-                            id: tabsFlickable
-                            anchors.fill: parent
-                            visible: opacity > 0.001
-                            opacity: root.searchActive ? 0.0 : 1.0
-                            contentHeight: tabsCol.implicitHeight + root.s(20)
-                            contentWidth: width
-                            clip: true
-                            boundsBehavior: Flickable.StopAtBounds
-
-                            Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-
-                            ScrollBar.vertical: ScrollBar {
-                                active: tabsFlickable.moving || tabsFlickable.movingVertically
-                                width: root.s(4)
-                                policy: ScrollBar.AsNeeded
-                                contentItem: Rectangle {
-                                    implicitWidth: root.s(4)
-                                    radius: root.s(2)
-                                    color: ThemeBackend.surface2
-                                }
-                            }
-
-                            Rectangle {
-                                id: activeHighlight
-                                z: 0
-                                visible: !root.searchActive || opacity > 0.001
-                                radius: ThemeBackend.borderRadius
-                                color: ThemeBackend.mauve
-
-                                property Item activeGroupItem: (root.currentTab >= 0 && tabsRepeater && root.currentTab < tabsRepeater.count) ? tabsRepeater.itemAt(root.currentTab) : null
-                                property bool isSubActive: root.currentTab === root.expandedTab && root.expandedTab !== -1
-
-                                property real targetX: isSubActive ? root.s(26) : 0
-                                property real targetY: {
-                                    let baseY = activeGroupItem ? activeGroupItem.y : (root.currentTab * (root.s(44) + root.s(4)));
-                                    if (isSubActive) {
-                                        return baseY + root.s(44) + root.s(4) + root.currentSubTab * (root.s(36) + root.s(4));
-                                    }
-                                    return baseY;
-                                }
-                                property real targetW: isSubActive ? (tabsCol.width - root.s(26)) : tabsCol.width
-                                property real targetH: isSubActive ? root.s(36) : root.s(44)
-
-                                x: targetX
-                                y: targetY
-                                width: targetW
-                                height: targetH
-
-                                opacity: root.getTabOpacity(root.currentTab)
-                                transform: Translate { x: root.s(-24) * (1.0 - root.getTabProgress(root.currentTab)) }
-
-                                Behavior on x { enabled: !sidebarWidthAnim.running; NumberAnimation { duration: 250; easing.type: Easing.OutQuint } }
-                                Behavior on y { enabled: !sidebarWidthAnim.running; NumberAnimation { duration: 250; easing.type: Easing.OutQuint } }
-                                Behavior on width { enabled: !sidebarWidthAnim.running; NumberAnimation { duration: 250; easing.type: Easing.OutQuint } }
-                                Behavior on height { enabled: !sidebarWidthAnim.running; NumberAnimation { duration: 250; easing.type: Easing.OutQuint } }
-                            }
-
-                            ColumnLayout {
-                                id: tabsCol
-                                width: tabsFlickable.width - (tabsFlickable.contentHeight > tabsFlickable.height ? root.s(6) : 0)
-                                spacing: root.s(4)
-
-                                readonly property var tabItems: tabsRepeater
-
-                                Repeater {
-                                    id: tabsRepeater
-                                    model: root.tabsModel
-                                    delegate: ColumnLayout {
-                                        id: tabDelegate
-                                        required property var modelData
-                                        required property int index
-
-                                        readonly property int tabIndex: index
-                                        readonly property bool hasSubtabs: Boolean(modelData.subtabs && modelData.subtabs.length > 0)
-                                        readonly property bool isExpanded: hasSubtabs && root.expandedTab === tabIndex
-                                        readonly property real fullSubtabsHeight: hasSubtabs ? (modelData.subtabs.length * root.s(36) + (modelData.subtabs.length - 1) * root.s(4) + root.s(8)) : 0
-                                        property real expandProgress: isExpanded ? 1.0 : 0.0
-
-                                        Behavior on expandProgress {
-                                            NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
-                                        }
-
-                                        Layout.fillWidth: true
-                                        spacing: 0
-
-                                        opacity: root.getTabOpacity(tabIndex)
-                                        transform: Translate { x: root.s(-24) * (1.0 - root.getTabProgress(tabIndex)) }
-
-                                        Rectangle {
-                                            id: tabHeaderItem
-                                            Layout.fillWidth: true
-                                            Layout.preferredHeight: root.s(44)
-                                            implicitHeight: root.s(44)
-                                            radius: ThemeBackend.borderRadius
-                                            z: 1
-
-                                            property bool isDirectActive: tabDelegate.hasSubtabs ? (root.currentTab === tabDelegate.tabIndex && !tabDelegate.isExpanded) : (root.currentTab === tabDelegate.tabIndex)
-
-                                            color: tabHeaderMa.containsMouse && !isDirectActive ? Qt.alpha(ThemeBackend.surface1, 0.5) : "transparent"
-                                            Behavior on color { ColorAnimation { duration: 150 } }
-
-                                            scale: tabHeaderMa.pressed ? 0.98 : 1.0
-                                            Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutQuint } }
-
-                                            RowLayout {
-                                                anchors.fill: parent
-                                                anchors.leftMargin: root.s(10) + (tabHeaderItem.isDirectActive ? root.s(4) : 0)
-                                                anchors.rightMargin: root.s(14)
-                                                spacing: root.s(10)
-
-                                                Behavior on anchors.leftMargin { NumberAnimation { duration: 400; easing.type: Easing.OutQuint } }
-
-                                                IconButton {
-                                                    enabled: false
-                                                    size: root.s(32)
-                                                    Layout.preferredWidth: root.s(32)
-                                                    Layout.preferredHeight: root.s(32)
-                                                    Layout.alignment: Qt.AlignVCenter
-                                                    cornerRadius: ThemeBackend.borderRadius
-                                                    buttonIcon: tabDelegate.modelData.icon || "󰒓"
-                                                    iconOffsetX: tabDelegate.modelData.iconOffsetX ?? 0
-                                                    iconFontSize: root.s(16)
-                                                    accentColor: ThemeBackend.surface0
-                                                    textColor: "#ffffff"
-                                                }
-
-                                                Text {
-                                                    text: I18n.t("guide.tabs." + (tabDelegate.modelData.key || tabDelegate.modelData.id).toLowerCase(), tabDelegate.modelData.name || tabDelegate.modelData.id)
-                                                    font.family: ThemeBackend.fontFamily
-                                                    font.weight: tabHeaderItem.isDirectActive ? Font.Bold : Font.Medium
-                                                    font.pixelSize: root.s(13)
-                                                    color: tabHeaderItem.isDirectActive 
-                                                        ? ThemeBackend.crust 
-                                                        : (tabHeaderMa.containsMouse ? ThemeBackend.text : ThemeBackend.subtext0)
-                                                    Layout.fillWidth: true
-                                                    Layout.alignment: Qt.AlignVCenter
-                                                    elide: Text.ElideRight
-                                                    Behavior on color { ColorAnimation { duration: 150 } }
-                                                }
-
-                                                Text {
-                                                    visible: tabDelegate.hasSubtabs
-                                                    text: "󰅀"
-                                                    font.family: ThemeBackend.iconFont
-                                                    font.pixelSize: root.s(14)
-                                                    color: tabHeaderItem.isDirectActive 
-                                                        ? ThemeBackend.crust 
-                                                        : (tabHeaderMa.containsMouse ? ThemeBackend.text : ThemeBackend.subtext0)
-                                                    Layout.alignment: Qt.AlignVCenter
-                                                    rotation: tabDelegate.expandProgress * 180 - 180
-                                                    Behavior on rotation { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
-                                                    Behavior on color { ColorAnimation { duration: 150 } }
-                                                }
-                                            }
-
-                                            MouseArea {
-                                                id: tabHeaderMa
-                                                anchors.fill: parent
-                                                hoverEnabled: true
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: {
-                                                    if (tabDelegate.hasSubtabs) {
-                                                        if (root.expandedTab === tabDelegate.tabIndex) {
-                                                            root.expandedTab = -1;
-                                                        } else {
-                                                            root.expandedTab = tabDelegate.tabIndex;
-                                                            if (root.currentTab !== tabDelegate.tabIndex) {
-                                                                root.currentTab = tabDelegate.tabIndex;
-                                                                root.currentSubTab = 0;
-                                                            }
-                                                        }
-                                                    } else {
-                                                        root.expandedTab = -1;
-                                                        root.currentTab = tabDelegate.tabIndex;
-                                                        root.currentSubTab = 0;
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        Item {
-                                            id: subtabsWrapper
-                                            visible: tabDelegate.hasSubtabs && tabDelegate.expandProgress > 0.001
-                                            Layout.fillWidth: true
-                                            Layout.preferredHeight: tabDelegate.fullSubtabsHeight * tabDelegate.expandProgress
-                                            implicitHeight: tabDelegate.fullSubtabsHeight * tabDelegate.expandProgress
-                                            opacity: Math.max(0.0, (tabDelegate.expandProgress - 0.15) / 0.85)
-                                            clip: true
-
-                                            RowLayout {
-                                                anchors.fill: parent
-                                                anchors.topMargin: root.s(4)
-                                                anchors.bottomMargin: root.s(4)
-                                                spacing: root.s(6)
-
-                                                Item {
-                                                    Layout.preferredWidth: root.s(20)
-                                                    Layout.fillHeight: true
-
-                                                    Rectangle {
-                                                        anchors.horizontalCenter: parent.horizontalCenter
-                                                        anchors.top: parent.top
-                                                        anchors.bottom: parent.bottom
-                                                        anchors.topMargin: root.s(2)
-                                                        anchors.bottomMargin: root.s(2)
-                                                        width: Math.max(1, root.s(2))
-                                                        radius: root.s(1)
-                                                        color: Qt.rgba(ThemeBackend.surface2.r, ThemeBackend.surface2.g, ThemeBackend.surface2.b, 0.7)
-                                                    }
-                                                }
-
-                                                ColumnLayout {
-                                                    Layout.fillWidth: true
-                                                    spacing: root.s(4)
-
-                                                    Repeater {
-                                                        model: tabDelegate.hasSubtabs ? tabDelegate.modelData.subtabs : []
-                                                        delegate: Rectangle {
-                                                            id: subtabItem
-                                                            required property var modelData
-                                                            required property int index
-
-                                                            readonly property int subIndex: index
-                                                            readonly property int parentIndex: tabDelegate.tabIndex
-
-                                                            Layout.fillWidth: true
-                                                            Layout.preferredHeight: root.s(36)
-                                                            implicitHeight: root.s(36)
-                                                            radius: ThemeBackend.borderRadius
-                                                            z: 1
-
-                                                            property bool isSubActive: root.currentTab === parentIndex && root.expandedTab === parentIndex && root.currentSubTab === subIndex
-
-                                                            color: subtabMa.containsMouse && !isSubActive ? Qt.alpha(ThemeBackend.surface1, 0.5) : "transparent"
-                                                            Behavior on color { ColorAnimation { duration: 150 } }
-
-                                                            scale: subtabMa.pressed ? 0.98 : 1.0
-                                                            Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutQuint } }
-
-                                                            RowLayout {
-                                                                anchors.fill: parent
-                                                                anchors.leftMargin: root.s(8) + (subtabItem.isSubActive ? root.s(4) : 0)
-                                                                anchors.rightMargin: root.s(10)
-                                                                spacing: root.s(8)
-
-                                                                Behavior on anchors.leftMargin { NumberAnimation { duration: 300; easing.type: Easing.OutQuint } }
-
-                                                                IconButton {
-                                                                    enabled: false
-                                                                    size: root.s(26)
-                                                                    Layout.preferredWidth: root.s(26)
-                                                                    Layout.preferredHeight: root.s(26)
-                                                                    Layout.alignment: Qt.AlignVCenter
-                                                                    cornerRadius: ThemeBackend.borderRadius
-                                                                    buttonIcon: subtabItem.modelData.icon || "󰒓"
-                                                                    iconOffsetX: subtabItem.modelData.iconOffsetX ?? 0
-                                                                    iconFontSize: root.s(13)
-                                                                    accentColor: ThemeBackend.surface0
-                                                                    textColor: "#ffffff"
-                                                                }
-
-                                                                Text {
-                                                                    text: I18n.t("guide.tabs." + (subtabItem.modelData.key || subtabItem.modelData.id).toLowerCase(), subtabItem.modelData.name || subtabItem.modelData.id)
-                                                                    font.family: ThemeBackend.fontFamily
-                                                                    font.weight: subtabItem.isSubActive ? Font.Bold : Font.Medium
-                                                                    font.pixelSize: root.s(12)
-                                                                    color: subtabItem.isSubActive ? ThemeBackend.crust : ThemeBackend.subtext0
-                                                                    Layout.fillWidth: true
-                                                                    Layout.alignment: Qt.AlignVCenter
-                                                                    elide: Text.ElideRight
-                                                                    Behavior on color { ColorAnimation { duration: 150 } }
-                                                                }
-                                                            }
-
-                                                            MouseArea {
-                                                                id: subtabMa
-                                                                anchors.fill: parent
-                                                                hoverEnabled: true
-                                                                cursorShape: Qt.PointingHandCursor
-                                                                onClicked: {
-                                                                    root.currentTab = parentIndex;
-                                                                    root.expandedTab = parentIndex;
-                                                                    root.currentSubTab = subIndex;
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    ClickButton {
-                        visible: Updater.updateAvailable && !root.searchActive
-                        Layout.fillWidth: true
-                        implicitHeight: root.s(38)
-                        cornerRadius: ThemeBackend.borderRadius
-                        buttonText: I18n.t("guide.update_available")
-                        buttonIcon: "󰚰"
-                        iconFontSize: root.s(16)
-                        textFontSize: root.s(13)
-                        accentColor: ThemeBackend.green
-                        textColor: ThemeBackend.crust
-                        opacity: root.getTabOpacity(root.tabsModel.length)
-                        transform: Translate { x: root.s(-24) * (1.0 - root.getTabProgress(root.tabsModel.length)) }
-                        onClicked: {
-                            root.gotoTab("about");
-                        }
-                    }
-                }
+                popup: root
             }
 
-            Item {
+            GuideContent {
                 id: contentArea
-                anchors.left: sidebar.right
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                anchors.leftMargin: 1
-                anchors.rightMargin: 1
-                anchors.topMargin: 4
-                anchors.bottomMargin: 4
-
-                opacity: introContent
-                scale: 0.95 + (0.05 * introContent)
-                transform: Translate { y: root.s(20) * (1.0 - introContent) }
-
-                Repeater {
-                    id: contentRepeater
-                    model: root.tabsModel
-                    delegate: Item {
-                        id: tabContentWrapper
-                        anchors.fill: parent
-
-                        property int parentTabIndex: index
-                        property int tabIndex: parentTabIndex
-                        property var tabData: modelData
-                        property bool hasSubtabs: Boolean(tabData.subtabs && tabData.subtabs.length > 0)
-                        property alias singleLoader: singleTabLoader
-                        property alias subLoadersRepeater: subRepeat
-
-                        property bool isCurrent: root.currentTab === parentTabIndex
-                        visible: isCurrent || opacity > 0.001
-                        opacity: isCurrent ? 1.0 : 0.0
-                        property real animY: isCurrent ? 0 : root.s(10)
-                        transform: Translate { y: tabContentWrapper.animY }
-
-                        Behavior on opacity {
-                            NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
-                        }
-                        Behavior on animY {
-                            NumberAnimation { duration: 240; easing.type: Easing.OutCubic }
-                        }
-
-                        Loader {
-                            id: singleTabLoader
-                            anchors.fill: parent
-                            asynchronous: false
-                            active: !tabContentWrapper.hasSubtabs
-                            visible: !tabContentWrapper.hasSubtabs && tabContentWrapper.visible
-                            property int tabIndex: tabContentWrapper.parentTabIndex
-                            property int subTabIndex: -1
-
-                            function ensureLoaded() {
-                                if (status === Loader.Null && tabData.file) {
-                                    setSource(tabData.file, {
-                                        "rootObj": root,
-                                        "tabIndex": tabContentWrapper.parentTabIndex
-                                    });
-                                }
-                            }
-
-                            onStatusChanged: {
-                                if (status === Loader.Error) {
-                                    console.warn("Guide tab failed to load:", source);
-                                }
-                            }
-
-                            onLoaded: {
-                                root.registerTabSearchItems(item);
-                                Qt.callLater(function() {
-                                    root.registerTabSearchItems(singleTabLoader.item);
-                                });
-                            }
-
-                            Component.onCompleted: ensureLoaded()
-
-                            Connections {
-                                target: root
-                                function onCurrentTabChanged() {
-                                    if (root.currentTab === tabContentWrapper.parentTabIndex && !tabContentWrapper.hasSubtabs) singleTabLoader.ensureLoaded();
-                                }
-                                function onRequestLoadAll() {
-                                    singleTabLoader.ensureLoaded();
-                                }
-                            }
-
-                            Connections {
-                                target: singleTabLoader.item
-                                ignoreUnknownSignals: true
-                                function onSearchItemsChanged() {
-                                    root.registerTabSearchItems(singleTabLoader.item);
-                                }
-                                function onSearchEntriesChanged() {
-                                    root.registerTabSearchItems(singleTabLoader.item);
-                                }
-                            }
-                        }
-
-                        Repeater {
-                            id: subRepeat
-                            model: tabContentWrapper.hasSubtabs ? tabData.subtabs : []
-
-                            delegate: Loader {
-                                id: subTabLoader
-                                anchors.fill: parent
-                                asynchronous: false
-                                property int subIndex: index
-                                property int tabIndex: tabContentWrapper.parentTabIndex
-                                property int subTabIndex: subIndex
-                                property var subData: modelData
-
-                                property bool isSubCurrent: root.currentTab === tabContentWrapper.parentTabIndex && root.currentSubTab === subIndex
-                                visible: isSubCurrent || opacity > 0.001
-                                opacity: isSubCurrent ? 1.0 : 0.0
-                                property real subAnimY: isSubCurrent ? 0 : root.s(10)
-                                transform: Translate { y: subTabLoader.subAnimY }
-
-                                Behavior on opacity {
-                                    NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
-                                }
-                                Behavior on subAnimY {
-                                    NumberAnimation { duration: 240; easing.type: Easing.OutCubic }
-                                }
-
-                                function ensureLoaded() {
-                                    if (status === Loader.Null && subData.file) {
-                                        setSource(subData.file, {
-                                            "rootObj": root,
-                                            "tabIndex": tabContentWrapper.parentTabIndex
-                                        });
-                                        if (item && item.subTabIndex !== undefined) {
-                                            item.subTabIndex = subIndex;
-                                        }
-                                    }
-                                }
-
-                                onStatusChanged: {
-                                    if (status === Loader.Error) {
-                                        console.warn("Guide tab failed to load:", source);
-                                    }
-                                }
-
-                                onLoaded: {
-                                    if (item && item.subTabIndex !== undefined) {
-                                        item.subTabIndex = subIndex;
-                                    }
-                                    root.registerTabSearchItems(item);
-                                    Qt.callLater(function() {
-                                        root.registerTabSearchItems(subTabLoader.item);
-                                    });
-                                }
-
-                                Component.onCompleted: ensureLoaded()
-
-                                Connections {
-                                    target: root
-                                    function onCurrentTabChanged() {
-                                        if (root.currentTab === tabContentWrapper.parentTabIndex && root.currentSubTab === subIndex) subTabLoader.ensureLoaded();
-                                    }
-                                    function onCurrentSubTabChanged() {
-                                        if (root.currentTab === tabContentWrapper.parentTabIndex && root.currentSubTab === subIndex) subTabLoader.ensureLoaded();
-                                    }
-                                    function onRequestLoadAll() {
-                                        subTabLoader.ensureLoaded();
-                                    }
-                                }
-
-                                Connections {
-                                    target: subTabLoader.item
-                                    ignoreUnknownSignals: true
-                                    function onSearchItemsChanged() {
-                                        root.registerTabSearchItems(subTabLoader.item);
-                                    }
-                                    function onSearchEntriesChanged() {
-                                        root.registerTabSearchItems(subTabLoader.item);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                popup: root
+                x: I18n.rtl ? 1 : (sidebar.targetWidth + 1)
+                y: 4
+                width: Math.max(0, parent.width - sidebar.targetWidth - 2)
+                height: Math.max(0, parent.height - 8)
             }
         }
     }

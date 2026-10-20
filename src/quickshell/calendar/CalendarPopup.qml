@@ -134,7 +134,7 @@ Item {
         if (visible) {
             forceActiveFocus();
             focusTimer.restart();
-            window.currentTime = new Date();
+            window.gridDay = DateTime.now.getDate();
             updateCalendarGrid();
             Weather.refresh(false);
             resetAndPlayIntro();
@@ -227,7 +227,7 @@ Item {
         from: 0; to: Math.PI * 2; duration: 9000; loops: Animation.Infinite; running: window.visible
     }
 
-    property var currentTime: new Date()
+    property var currentTime: DateTime.now
     property real currentEpoch: currentTime.getTime() / 1000
 
     property real secondPulse: 1.0
@@ -236,15 +236,19 @@ Item {
         to: 1.0; duration: 600; easing.type: Easing.OutQuint; running: false
     }
 
-    Timer {
-        interval: 1000; running: window.visible; repeat: true
-        onTriggered: {
-            window.currentTime = new Date();
+    property int gridDay: -1
+
+    Connections {
+        target: DateTime
+        enabled: window.visible
+        function onNowChanged() {
             window.secondPulse = 1.02;
             pulseReset.start();
 
-            if (window.currentTime.getHours() === 0 && window.currentTime.getMinutes() === 0 && window.currentTime.getSeconds() === 0) {
-                updateCalendarGrid();
+            let day = DateTime.now.getDate();
+            if (day !== window.gridDay) {
+                window.gridDay = day;
+                window.updateCalendarGrid();
             }
         }
     }
@@ -456,10 +460,19 @@ Item {
         Rectangle {
             anchors.fill: parent
             radius: ThemeBackend.borderRadius
-            color: window.base
-            border.color: window.surface0
-            border.width: 1
+            color: Qt.alpha(ThemeBackend.base, ThemeBackend.elementOpacity)
+            border.width: 0
+            border.color: "transparent"
             clip: true
+
+            WallpaperBlur {
+                z: -1
+                anchors.fill: parent
+                topLeftRadius: parent.topLeftRadius
+                topRightRadius: parent.topRightRadius
+                bottomLeftRadius: parent.bottomLeftRadius
+                bottomRightRadius: parent.bottomRightRadius
+            }
 
             Rectangle {
                 width: parent.width * 0.5; height: width; radius: width / 2
@@ -626,13 +639,21 @@ Item {
                     }
                 ]
 
-                Canvas {
+                ShaderEffect {
                     id: orbitCanvas
                     z: -10
                     anchors.centerIn: parent
                     width: window.s(680)
                     height: window.s(320)
                     opacity: 0.35
+
+                    property vector2d itemSize: Qt.vector2d(width, height)
+                    property vector2d radii: Qt.vector2d(window.s(268), window.s(124))
+                    property vector2d dash: Qt.vector2d(window.s(4), window.s(12))
+                    property real lineWidth: Math.max(1, window.s(2))
+                    property color color: Qt.alpha(window.textAccent, 0.45)
+
+                    fragmentShader: "file://" + Caching.serpantinumDir + "/assets/shaders/ui/dashed_ellipse.frag.qsb"
 
                     SequentialAnimation on scale {
                         loops: Animation.Infinite
@@ -641,26 +662,6 @@ Item {
                         NumberAnimation { to: 1.0; duration: 4000; easing.type: Easing.InOutSine }
                     }
 
-                    onWidthChanged: requestPaint()
-                    onHeightChanged: requestPaint()
-
-                    onPaint: {
-                        var ctx = getContext("2d");
-                        ctx.clearRect(0, 0, width, height);
-                        ctx.beginPath();
-                        var currentRx = window.s(268);
-                        var currentRy = window.s(124);
-                        for (var i = 0; i <= Math.PI * 2; i += 0.05) {
-                            var xx = width / 2 + Math.cos(i) * currentRx;
-                            var yy = height / 2 + Math.sin(i) * currentRy;
-                            if (i === 0) ctx.moveTo(xx, yy); else ctx.lineTo(xx, yy);
-                        }
-                        ctx.strokeStyle = Qt.alpha(window.textAccent, 0.45);
-                        ctx.lineWidth = Math.max(1, window.s(2));
-                        ctx.lineCap = "round";
-                        ctx.setLineDash([window.s(4), window.s(12)]);
-                        ctx.stroke();
-                    }
                     Behavior on opacity { NumberAnimation { duration: 1500 } }
                 }
 
@@ -706,12 +707,12 @@ Item {
 
                     Repeater {
                         id: hourRepeater
-                        model: window.weatherData && window.weatherData.forecast[window.weatherView] && window.weatherData.forecast[window.weatherView].hourly ? window.weatherData.forecast[window.weatherView].hourly.slice(0, 8) : []
+                        model: window && window.weatherData && window.weatherData.forecast[window.weatherView] && window.weatherData.forecast[window.weatherView].hourly ? window.weatherData.forecast[window.weatherView].hourly.slice(0, 8) : []
 
                         delegate: Item {
                             property int mCount: hourRepeater.count
-                            property bool isToday: window.weatherView === 0
-                            property bool isHighlighted: isToday && index === window.activeHourIndex
+                            property bool isToday: !!window && window.weatherView === 0
+                            property bool isHighlighted: isToday && !!window && index === window.activeHourIndex
 
                             property real rx: window.s(268) * orbitCanvas.scale
                             property real ry: window.s(124) * orbitCanvas.scale
@@ -742,9 +743,21 @@ Item {
                             Rectangle {
                                 anchors.fill: parent
                                 radius: Math.min(window.s(26), ThemeBackend.borderRadius * 1.75)
-                                color: isHighlighted ? window.textAccent : (hrMa.containsMouse ? Qt.lighter(window.surface0, 1.12) : window.surface0)
+                                color: hourGlass.active ? "transparent" : (isHighlighted ? window.textAccent : Qt.alpha(hrMa.containsMouse ? Qt.lighter(window.surface0, 1.12) : window.surface0, 1.0))
                                 border.color: isHighlighted ? Qt.lighter(window.textAccent, 1.1) : (hrMa.containsMouse ? Qt.alpha(window.surface2, 0.9) : Qt.alpha(window.surface1, 0.6))
-                                border.width: 1
+                                border.width: ThemeBackend.liquidGlass ? 0 : 1
+
+                                GlassFill {
+                                    id: hourGlass
+                                    anchors.fill: parent
+                                    radius: parent.radius
+                                    forceClear: true
+                                    tintColor: window ? (isHighlighted ? window.textAccent : window.surface0) : ThemeBackend.surface0
+                                    tintAmount: isHighlighted ? 0.4 : 0.2
+                                    tintStrength: 1.0
+                                    press: hrMa.pressed ? 0.8 : (hrMa.containsMouse ? 0.25 : 0)
+                                    Behavior on press { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                                }
 
                                 Behavior on color { ColorAnimation { duration: 180 } }
                                 Behavior on border.color { ColorAnimation { duration: 180 } }
@@ -759,7 +772,7 @@ Item {
                                         font.family: ThemeBackend.fontFamily
                                         font.weight: Font.Bold
                                         font.pixelSize: window.s(11.5)
-                                        color: isHighlighted ? window.base : (hrMa.containsMouse ? window.text : window.overlay1)
+                                        color: (isHighlighted && !hourGlass.active) ? window.base : (hrMa.containsMouse || isHighlighted ? window.text : window.overlay1)
                                         Behavior on color { ColorAnimation { duration: 180 } }
                                     }
 
@@ -768,7 +781,7 @@ Item {
                                         text: modelData ? (modelData.icon || (window.weatherData && window.weatherData.forecast[window.weatherView] ? window.weatherData.forecast[window.weatherView].icon : "")) : ""
                                         font.family: ThemeBackend.fontFamily
                                         font.pixelSize: window.s(16.5)
-                                        color: isHighlighted ? window.base : (modelData ? (modelData.hex || window.text) : window.text)
+                                        color: (isHighlighted && !hourGlass.active) ? window.base : (modelData ? (modelData.hex || window.text) : window.text)
                                     }
 
                                     Text {
@@ -777,7 +790,7 @@ Item {
                                         font.family: ThemeBackend.fontFamily
                                         font.weight: Font.Black
                                         font.pixelSize: window.s(12.5)
-                                        color: isHighlighted ? window.base : window.text
+                                        color: (isHighlighted && !hourGlass.active) ? window.base : window.text
                                     }
                                 }
                             }
@@ -794,11 +807,19 @@ Item {
                 anchors.leftMargin: window.s(40)
                 width: window.s(310)
                 height: window.s(350)
-                color: Qt.alpha(window.surface0, 0.2)
+                color: calendarGlass.active ? "transparent" : Qt.alpha(window.surface0, 0.2)
                 radius: ThemeBackend.borderRadius
                 border.color: Qt.alpha(window.surface1, 0.4)
                 border.width: 1
                 z: 10
+
+                GlassFill {
+                    id: calendarGlass
+                    anchors.fill: parent
+                    radius: parent.radius
+                    tintColor: window.surface0
+                    tintAmount: 0.25
+                }
 
                 opacity: introCalendar
                 transform: Translate { x: -window.s(40) * (1.0 - introCalendar) }
@@ -816,6 +837,7 @@ Item {
                     RowLayout {
                         Layout.fillWidth: true
                         Layout.bottomMargin: window.s(14)
+                        layoutDirection: I18n.layoutDirection
 
                         IconButton {
                             Layout.preferredWidth: window.s(28)
@@ -837,7 +859,7 @@ Item {
                             Layout.preferredHeight: window.s(28)
                             size: window.s(28)
                             cornerRadius: window.s(8)
-                            buttonIcon: ""
+                            buttonIcon: I18n.rtl ? "" : ""
                             iconFontSize: window.s(14)
                             accentColor: window.surface0
                             textColor: window.text
@@ -864,7 +886,7 @@ Item {
                             Layout.preferredHeight: window.s(28)
                             size: window.s(28)
                             cornerRadius: window.s(8)
-                            buttonIcon: ""
+                            buttonIcon: I18n.rtl ? "" : ""
                             iconFontSize: window.s(14)
                             accentColor: window.surface0
                             textColor: window.text
@@ -875,6 +897,7 @@ Item {
                     RowLayout {
                         Layout.fillWidth: true
                         Layout.bottomMargin: window.s(4)
+                        layoutDirection: I18n.layoutDirection
 
                         Repeater {
                             model: [I18n.t("calendar.days.mo"), I18n.t("calendar.days.tu"), I18n.t("calendar.days.we"), I18n.t("calendar.days.th"), I18n.t("calendar.days.fr"), I18n.t("calendar.days.sa"), I18n.t("calendar.days.su")]
@@ -896,6 +919,7 @@ Item {
                         columns: 7
                         rowSpacing: window.s(2)
                         columnSpacing: window.s(3)
+                        layoutDirection: I18n.layoutDirection
 
                         opacity: window.calendarContentOpacity
                         transform: Translate { x: window.calendarContentOffset }
@@ -910,8 +934,9 @@ Item {
                                 textFontSize: window.s(11.5)
                                 cornerRadius: window.s(5)
                                 horizontalPadding: 0
-                                accentColor: isToday ? window.textAccent : "transparent"
-                                textColor: isToday ? window.base : (isCurrentMonth ? window.text : window.surface0)
+                                accentColor: isToday ? window.textAccent : ((ThemeBackend.liquidGlass && !isCurrentMonth) ? window.surface0 : "transparent")
+                                glassTintScale: isToday ? 2.6 : 1.0
+                                textColor: ThemeBackend.liquidGlass ? (isCurrentMonth ? window.text : window.subtext0) : (isToday ? window.base : (isCurrentMonth ? window.text : window.surface0))
                             }
                         }
                     }
@@ -938,13 +963,14 @@ Item {
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignRight | Qt.AlignTop
                         spacing: window.s(14)
+                        layoutDirection: I18n.layoutDirection
 
                         IconButton {
                             Layout.preferredWidth: window.s(28)
                             Layout.preferredHeight: window.s(28)
                             size: window.s(28)
                             cornerRadius: window.s(8)
-                            buttonIcon: ""
+                            buttonIcon: I18n.rtl ? "" : ""
                             iconFontSize: window.s(12)
                             accentColor: window.surface0
                             textColor: isHoveredOrHighlighted ? window.textAccent : window.overlay1
@@ -968,7 +994,7 @@ Item {
                             Layout.preferredHeight: window.s(28)
                             size: window.s(28)
                             cornerRadius: window.s(8)
-                            buttonIcon: ""
+                            buttonIcon: I18n.rtl ? "" : ""
                             iconFontSize: window.s(12)
                             accentColor: window.surface0
                             textColor: isHoveredOrHighlighted ? window.textAccent : window.overlay1
@@ -1032,6 +1058,7 @@ Item {
                         columns: 2
                         rowSpacing: window.s(8)
                         columnSpacing: window.s(8)
+                        layoutDirection: I18n.layoutDirection
 
                         Repeater {
                             model: 4

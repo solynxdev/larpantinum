@@ -49,8 +49,12 @@ CONFIG_PATH = os.environ.get("QS_SETTINGS", os.path.expanduser("~/.config/larpan
 SYSTEM_STATES = {"Desktop", "Locked", "Quickshell", "Unknown"}
 
 def detect_compositor():
+    if os.environ.get("MANGO_INSTANCE_SIGNATURE"):
+        return "mango"
     if os.environ.get("NIRI_SOCKET"):
         return "niri"
+    if os.environ.get("SWAYSOCK"):
+        return "sway"
     try:
         if subprocess.run(['pgrep', '-x', 'niri'], capture_output=True).returncode == 0:
             return "niri"
@@ -61,6 +65,16 @@ def detect_compositor():
     try:
         if subprocess.run(['pgrep', '-x', 'Hyprland'], capture_output=True).returncode == 0:
             return "hyprland"
+    except Exception:
+        pass
+    try:
+        if subprocess.run(['pgrep', '-x', 'sway'], capture_output=True).returncode == 0:
+            return "sway"
+    except Exception:
+        pass
+    try:
+        if subprocess.run(['pgrep', '-x', 'mango'], capture_output=True).returncode == 0:
+            return "mango"
     except Exception:
         pass
     return "unknown"
@@ -175,6 +189,40 @@ def listen_niri_ipc():
             for line in process.stdout:
                 if not line.strip(): continue
                 cls, clean_title = get_active_window_niri()
+                if is_locked():
+                    current_app_class, current_app_title = "Locked", "Locked"
+                else:
+                    current_app_class, current_app_title = cls, clean_title
+            process.wait()
+        except Exception:
+            pass
+        time.sleep(2)
+
+def listen_sway_ipc():
+    global current_app_class, current_app_title
+    while True:
+        try:
+            process = subprocess.Popen(['swaymsg', '-t', 'subscribe', '-m', '["window", "workspace"]'], stdout=subprocess.PIPE, text=True)
+            for line in process.stdout:
+                if not line.strip(): continue
+                cls, clean_title = get_active_window_sway()
+                if is_locked():
+                    current_app_class, current_app_title = "Locked", "Locked"
+                else:
+                    current_app_class, current_app_title = cls, clean_title
+            process.wait()
+        except Exception:
+            pass
+        time.sleep(2)
+
+def listen_mango_ipc():
+    global current_app_class, current_app_title
+    while True:
+        try:
+            process = subprocess.Popen(['mmsg', 'watch', 'focusing-client'], stdout=subprocess.PIPE, text=True)
+            for line in process.stdout:
+                if not line.strip(): continue
+                cls, clean_title = get_active_window_mango()
                 if is_locked():
                     current_app_class, current_app_title = "Locked", "Locked"
                 else:
@@ -443,7 +491,13 @@ def main():
 
     compositor = detect_compositor()
     
-    if compositor == "niri":
+    if compositor == "mango":
+        current_app_class, current_app_title = get_active_window_mango()
+        ipc_thread = threading.Thread(target=listen_mango_ipc, daemon=True)
+    elif compositor == "sway":
+        current_app_class, current_app_title = get_active_window_sway()
+        ipc_thread = threading.Thread(target=listen_sway_ipc, daemon=True)
+    elif compositor == "niri":
         current_app_class, current_app_title = get_active_window_niri()
         ipc_thread = threading.Thread(target=listen_niri_ipc, daemon=True)
     else:

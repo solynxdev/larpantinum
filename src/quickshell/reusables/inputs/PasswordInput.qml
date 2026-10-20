@@ -58,7 +58,7 @@ FocusScope {
         }
     }
 
-    property int horizontalAlignment: TextInput.AlignLeft
+    property int horizontalAlignment: I18n.rtl ? TextInput.AlignRight : TextInput.AlignLeft
     property int charSlotWidth: -1
     property int charSpacing: 2
     property alias symbolSpacing: root.charSpacing
@@ -250,11 +250,27 @@ FocusScope {
         }
     }
 
+    property real typePulse: 0.0
+    property real errorPulse: 0.0
+
+    SequentialAnimation {
+        id: typePulseAnim
+        NumberAnimation { target: root; property: "typePulse"; to: 0.55; duration: 60; easing.type: Easing.OutQuad }
+        NumberAnimation { target: root; property: "typePulse"; to: 0.0; duration: 380; easing.type: Easing.OutCubic }
+    }
+
+    SequentialAnimation {
+        id: errorPulseAnim
+        NumberAnimation { target: root; property: "errorPulse"; to: 1.0; duration: 90; easing.type: Easing.OutQuad }
+        NumberAnimation { target: root; property: "errorPulse"; to: 0.0; duration: 620; easing.type: Easing.OutCubic }
+    }
+
     onTextChanged: {
         if (innerInput.text !== root.text) {
             innerInput.text = root.text;
             syncModel();
         }
+        if (glass.active) typePulseAnim.restart();
         root.hasSuccess = false;
         root.hasError = false;
     }
@@ -266,7 +282,10 @@ FocusScope {
         lockButton.requestPaint();
     }
 
-    onHasErrorChanged: lockButton.requestPaint()
+    onHasErrorChanged: {
+        if (hasError && glass.active) errorPulseAnim.restart();
+        lockButton.requestPaint();
+    }
     onHasSuccessChanged: lockButton.requestPaint()
     onIsBusyChanged: {
         if (!isBusy) {
@@ -281,7 +300,7 @@ FocusScope {
         let minLen = Math.min(str.length, charModel.count);
         let matchLen = 0;
 
-        while (matchLen < minLen && str[matchLen] === charModel.get(matchLen).char) {
+        while (matchLen < minLen && str[matchLen] === charModel.get(matchLen).glyph) {
             matchLen++;
         }
 
@@ -290,7 +309,7 @@ FocusScope {
         }
 
         for (let i = matchLen; i < str.length; i++) {
-            charModel.append({ char: str[i] });
+            charModel.append({ glyph: str[i] });
         }
         updateScroll();
     }
@@ -347,20 +366,32 @@ FocusScope {
             radius: root.cornerRadius
             clip: true
             opacity: root.enabled ? 1.0 : 0.5
-            color: {
+            readonly property color stateColor: {
                 if (root.hasFocus) return root.focusColor;
                 if (innerInput.text.length > 0) return root.activeColor;
                 if (root.isHoveredOrHighlighted) return root.hoverColor;
                 return root.baseColor;
             }
+            color: glass.active ? "transparent" : stateColor
             Behavior on color { ColorAnimation { duration: 180 } }
+
+            GlassFill {
+                id: glass
+                anchors.fill: parent
+                radius: parent.radius
+                tintColor: bgShape.stateColor
+                tintAmount: root.hasFocus ? 0.38 : 0.26
+                press: root.hasFocus ? 0.55 : (root.isHoveredOrHighlighted ? 0.2 : 0)
+                pulse: Math.min(1, root.typePulse + root.errorPulse)
+                Behavior on press { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+                Behavior on tintAmount { NumberAnimation { duration: 180 } }
+            }
         }
 
         CanvasIconButton {
             id: lockButton
             visible: root.showLockIcon
-            anchors.left: parent.left
-            anchors.leftMargin: 4
+            x: I18n.rtl ? (parent.width - width - 4) : 4
             anchors.verticalCenter: parent.verticalCenter
             size: root.lockButtonSize
             iconSize: Math.round(root.lockButtonSize * 0.72)
@@ -540,8 +571,7 @@ FocusScope {
         Item {
             id: submitButton
             visible: root.showSubmitButton
-            anchors.right: parent.right
-            anchors.rightMargin: 4
+            x: I18n.rtl ? 4 : (parent.width - width - 4)
             anchors.verticalCenter: parent.verticalCenter
             width: size
             height: size
@@ -595,7 +625,7 @@ FocusScope {
                     anchors.centerIn: parent
                     width: submitButton.size * 0.38
                     height: submitButton.size * 0.38
-                    rotation: 180
+                    rotation: I18n.rtl ? 0 : 180
 
                     property real armThickness: Math.max(1.5, submitButton.size * 0.048)
                     property real armLength: Math.max(5, submitButton.size * 0.19)
@@ -605,8 +635,8 @@ FocusScope {
                         id: chevronSpinAnim
                         target: chevronWrapper
                         property: "rotation"
-                        from: 180
-                        to: 540
+                        from: I18n.rtl ? 0 : 180
+                        to: I18n.rtl ? 360 : 540
                         duration: 400
                         easing.type: Easing.OutCubic
                     }
@@ -683,10 +713,10 @@ FocusScope {
 
         Item {
             id: fieldArea
-            anchors.left: root.showLockIcon ? lockButton.right : parent.left
-            anchors.leftMargin: root.showLockIcon ? 6 : root.horizontalPadding
-            anchors.right: root.showSubmitButton ? submitButton.left : parent.right
-            anchors.rightMargin: root.showSubmitButton ? 6 : root.horizontalPadding
+            anchors.left: !I18n.rtl ? (root.showLockIcon ? lockButton.right : parent.left) : (root.showSubmitButton ? submitButton.right : parent.left)
+            anchors.leftMargin: !I18n.rtl ? (root.showLockIcon ? 6 : root.horizontalPadding) : (root.showSubmitButton ? 6 : root.horizontalPadding)
+            anchors.right: !I18n.rtl ? (root.showSubmitButton ? submitButton.left : parent.right) : (root.showLockIcon ? lockButton.left : parent.right)
+            anchors.rightMargin: !I18n.rtl ? (root.showSubmitButton ? 6 : root.horizontalPadding) : (root.showLockIcon ? 6 : root.horizontalPadding)
             anchors.top: parent.top
             anchors.bottom: parent.bottom
             anchors.topMargin: root.verticalPadding
@@ -817,7 +847,7 @@ FocusScope {
                 delegate: Item {
                     id: charSlot
                     required property int index
-                    required property string char
+                    required property string glyph
 
                     property real baseWidth: root.charSlotWidth > 0
                         ? root.charSlotWidth
@@ -875,7 +905,7 @@ FocusScope {
                     Text {
                         id: charText
                         anchors.centerIn: parent
-                        text: charSlot.char
+                        text: charSlot.glyph
                         color: root.textColor
 
                         font.family: root.fontFamily

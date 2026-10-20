@@ -43,7 +43,8 @@
       "dock": "Dock",
       "bar_general": "General",
       "bar_modules": "Módulos",
-      "bar_side_modules": "Módulos laterales"
+      "bar_side_modules": "Módulos laterales",
+      "display_lockscreen": "Pantalla de bloqueo"
     },
     "launcher": {
       "position": {
@@ -101,6 +102,10 @@
       "empty_graphic": {
         "title": "Animación de centro vacío",
         "desc": "Mostrar el gráfico del gato durmiendo en el centro de notificaciones cuando esté vacío"
+      },
+      "right_click_close": {
+        "title": "Cerrar con clic derecho",
+        "desc": "Descartar una notificación con clic derecho"
       },
       "test": "Probar notificación",
       "test_desc": "Esta es una notificación de prueba"
@@ -166,7 +171,11 @@
       "hooks": {
         "title": "Ganchos (comandos de shell)"
       },
-      "custom_action_desc": "Acción y comando personalizados por tiempo de espera"
+      "custom_action_desc": "Acción y comando personalizados por tiempo de espera",
+      "lock_on_sleep": {
+        "title": "Bloquear antes de suspender",
+        "desc": "Bloquear la sesión antes de que el sistema se suspenda, por ejemplo al cerrar la tapa"
+      }
     },
     "welcome": {
       "by_author": "por @{author}",
@@ -275,6 +284,36 @@
         },
         "preset_name_placeholder": "Introduce el nombre del ajuste...",
         "screen_desc": "Configurar y editar widgets del escritorio"
+      },
+      "lockscreen": {
+        "edit": {
+          "title": "Pantalla de bloqueo",
+          "desc": "Personaliza el diseño de tu pantalla de bloqueo",
+          "button": "Editar pantalla de bloqueo"
+        },
+        "limits": {
+          "title": "Límites de intentos",
+          "desc": "Bloquea temporalmente la entrada de contraseña y desactiva el lector de huellas tras demasiados intentos fallidos"
+        },
+        "password_attempts": {
+          "title": "Intentos de contraseña",
+          "desc": "Intentos fallidos antes de bloquear la entrada de contraseña durante 30 segundos"
+        },
+        "fingerprint_attempts": {
+          "title": "Intentos de huella",
+          "desc": "Lecturas fallidas antes de desactivar el lector de huellas hasta el próximo desbloqueo"
+        },
+        "fingerprint": {
+          "title": "Activar inicio con huella dactilar",
+          "desc": "Permitir desbloquear la pantalla de bloqueo con una huella dactilar"
+        },
+        "background": {
+          "select": "Seleccionar fondo",
+          "follow": "Seguir fondo de pantalla",
+          "custom": "Personalizado",
+          "follows_hint": "Sigue el fondo de pantalla",
+          "none": "Ningún fondo seleccionado"
+        }
       }
     },
     "bar": {
@@ -325,6 +364,11 @@
         "title": "Ancho de la barra",
         "desc": "Establecer el ancho de la barra como porcentaje"
       },
+      "center_by_edges": {
+        "title": "Centrar por los bordes",
+        "desc": "Mantiene márgenes iguales a izquierda y derecha de la barra en lugar de centrar por el módulo central",
+        "desc_vertical": "Mantiene márgenes iguales arriba y abajo de la barra en lugar de centrar por el módulo central"
+      },
       "workspaces": {
         "title": "Elegir cantidad de espacios de trabajo a mostrar",
         "disc": "Nota: esto no afecta la cantidad real de espacios de trabajo en el compositor",
@@ -337,10 +381,6 @@
           "title": "Estilo",
           "desc": "Elige el estilo visual para los indicadores de áreas de trabajo"
         }
-      },
-      "opacity": {
-        "title": "Opacidad de la barra",
-        "desc": "Establecer la opacidad de la barra como porcentaje"
       },
       "style": {
         "title": "Estilo de la barra",
@@ -530,6 +570,54 @@
           "button": "Botón interactivo con fondo",
           "text": "Texto e icono limpios sin fondo"
         }
+      },
+      "media": {
+        "info_mode": {
+          "title": "Secondary info",
+          "desc": "Choose whether to show the song duration or its author",
+          "duration": "Duration",
+          "author": "Author"
+        },
+        "width": {
+          "title": "Width",
+          "desc": "Width of the song title area"
+        },
+        "show_icon": {
+          "title": "Mostrar icono",
+          "desc": "Muestra la portada del álbum o el icono de música"
+        },
+        "show_controls": {
+          "title": "Mostrar controles",
+          "desc": "Muestra los botones de anterior, reproducir y siguiente"
+        },
+        "preview": {
+          "title": "Título de la canción",
+          "author": "Song author"
+        }
+      },
+      "thickness": {
+        "title": "Grosor de la barra",
+        "desc": "Cambia el grosor de la barra, los módulos se ajustan"
+      },
+      "menu": {
+        "show_settings": {
+          "title": "Mostrar icono de ajustes",
+          "desc": "Muestra el botón que abre los ajustes"
+        },
+        "show_launcher": {
+          "title": "Mostrar icono del lanzador",
+          "desc": "Muestra el botón de búsqueda que abre el lanzador"
+        },
+        "style": {
+          "title": "Estilo",
+          "desc": "Elige la apariencia visual del módulo de menú",
+          "name": {
+            "button": "Botón",
+            "icon": "Icono"
+          },
+          "button": "Botones de icono interactivos con fondo",
+          "icon": "Iconos limpios sin fondo"
+        }
       }
     },
     "theme": {
@@ -555,6 +643,18 @@
         "select_wallpaper": "Seleccionar fondo de pantalla",
         "no_wallpaper_selected": "Ningún fondo de pantalla seleccionado",
         "select": "Fondo de pantalla"
+      },
+      "element_opacity": {
+        "title": "Opacidad de los elementos",
+        "desc": "Opacidad de la barra, el dock, los widgets y cualquier otro elemento del shell"
+      },
+      "blur_background": {
+        "title": "Añadir un fondo de pantalla desenfocado",
+        "desc": "Desenfoca el fondo de pantalla detrás de cada elemento que usa transparencia",
+        "style": {
+          "blur": "Desenfoque",
+          "liquid": "Cristal líquido"
+        }
       }
     },
     "file_picker": {
@@ -569,7 +669,8 @@
         "pictures": "Imágenes",
         "music": "Música",
         "documents": "Documentos"
-      }
+      },
+      "done": "Listo"
     },
     "font_picker": {
       "title": "Seleccionar fuente",
@@ -805,10 +906,6 @@
         "done": "Listo",
         "empty": "No hay aplicaciones coincidentes"
       },
-      "opacity": {
-        "title": "Opacidad del dock",
-        "desc": "Ajustar el nivel de opacidad del fondo del dock"
-      },
       "override_bounds": {
         "title": "Anular corrección de tamaño por límites de pantalla",
         "desc": "Mantener tamaño personalizado incluso si el dock supera los límites de la pantalla"
@@ -840,6 +937,33 @@
       "smart_autohide": {
         "title": "Ocultación automática inteligente",
         "desc": "Ocultar el dock solo cuando haya ventanas abiertas, mantener visible en el escritorio"
+      },
+      "focus_running": {
+        "title": "Enfocar ventana existente",
+        "desc": "Hacer clic en el icono de una aplicación activa su ventana abierta en lugar de iniciar una nueva instancia"
+      },
+      "show_running_indicators": {
+        "title": "Indicadores de ejecución",
+        "desc": "Mostrar indicadores de punto o barra en los iconos de aplicaciones abiertas"
+      },
+      "show_running_apps": {
+        "title": "Mostrar aplicaciones abiertas",
+        "desc": "Mostrar aplicaciones abiertas no ancladas en el dock"
+      },
+      "running_scope": {
+        "title": "Ámbito de ventanas activas",
+        "desc": "Filtrar las ventanas en ejecución mostradas y controladas por el dock",
+        "auto": "Automático (por defecto del compositor)",
+        "all": "Todos los espacios de trabajo y monitores",
+        "output": "Solo monitor actual",
+        "workspace": "Solo espacio de trabajo activo"
+      },
+      "window_menu": {
+        "untitled": "Untitled"
+      },
+      "background": {
+        "title": "Dibujar un fondo detrás de las apps",
+        "desc": "Mostrar el panel del dock detrás de los iconos de las apps"
       }
     },
     "lyrics_picker": {
@@ -924,13 +1048,65 @@
       "authenticating": "Autenticando...",
       "enter_pin": "Introduce el PIN"
     },
+    "fingerprint": {
+      "ready": "Toca el sensor",
+      "not_recognized": "Huella no reconocida",
+      "recognized": "Huella reconocida"
+    },
     "power": {
       "suspend": "Suspender",
       "reboot": "Reiniciar",
       "power_off": "Apagar"
     },
     "default_user": "Usuario",
-    "unknown": "Desconocido"
+    "unknown": "Desconocido",
+    "redactor": {
+      "done": "Listo",
+      "element": {
+        "avatar": "Avatar",
+        "user": "Usuario",
+        "password": "Contraseña",
+        "fingerprint": "Huella dactilar",
+        "notifications": "Notificaciones",
+        "clock": "Reloj",
+        "lockstatus": "Estado de bloqueo",
+        "keyboard": "Teclado",
+        "battery": "Batería"
+      },
+      "variant": {
+        "avatar": {
+          "round": "Redondo",
+          "rounded": "Redondeado"
+        },
+        "user": {
+          "filled": "Relleno",
+          "plain": "Simple"
+        },
+        "password": {
+          "filled": "Relleno",
+          "glass": "Cristal"
+        },
+        "fingerprint": {
+          "classic": "Clásico",
+          "ring": "Anillo",
+          "scanner": "Escáner",
+          "pulse": "Pulso",
+          "orbit": "Órbita",
+          "liquid": "Líquido"
+        },
+        "notifications": {
+          "card": "Tarjeta",
+          "plain": "Simple"
+        },
+        "lockstatus": {
+          "filled": "Relleno",
+          "plain": "Simple"
+        }
+      },
+      "setting": {
+        "show_text": "Mostrar texto"
+      }
+    }
   },
   "music": {
     "nothing_playing": "No hay nada reproduciéndose",
@@ -944,6 +1120,26 @@
     "eq": {
       "apply": "Aplicar",
       "saved": "Guardado"
+    },
+    "audio": {
+      "title": "Audio",
+      "balance": "Balance de canales",
+      "reset": "Restablecer",
+      "centered": "Centrado",
+      "left_slightly_favored": "Favorece un poco la izquierda",
+      "right_slightly_favored": "Favorece un poco la derecha",
+      "left_only": "Solo izquierda",
+      "right_only": "Solo derecha",
+      "left_favored": "Favorece la izquierda",
+      "right_favored": "Favorece la derecha",
+      "test": "Probar",
+      "stop_test": "Detener",
+      "mono": "Audio mono",
+      "swap": "Intercambiar I/D",
+      "dynamic_range": "Rango dinámico",
+      "off": "Desactivado",
+      "balanced": "Equilibrado",
+      "night": "Nocturno"
     },
     "presets": {
       "flat": "Plano",
@@ -982,7 +1178,8 @@
     },
     "actions": {
       "unpair": "Desvincular",
-      "scan": "Escanear"
+      "scan": "Escanear",
+      "sign_in": "Iniciar sesión"
     }
   },
   "notifications": {
@@ -1082,11 +1279,33 @@
       "pin": "Fijar",
       "unpin": "Desfijar"
     },
+    "calculator": {
+      "history": "Historial",
+      "no_history": "Aún no hay cálculos",
+      "clear_history": "Borrar historial",
+      "copied": "Copiado",
+      "deg": "Deg",
+      "rad": "Rad",
+      "grad": "Grad",
+      "inv": "Inv",
+      "mode": {
+        "normal": "Normal",
+        "advanced": "Avanzado"
+      },
+      "clear": "AC",
+      "error": {
+        "syntax": "Expresión no válida",
+        "div0": "No se puede dividir entre cero",
+        "domain": "Entrada no válida",
+        "paste": "Pegado no válido"
+      }
+    },
     "tabs": {
       "draw": "Dibujo",
       "system": "Sistema",
       "timer": "Temporizador",
       "notes": "Notas",
+      "calculator": "Calculadora",
       "tab": "Pestaña"
     }
   },
@@ -1301,6 +1520,8 @@
       "default": "Predeterminado",
       "material": "Material",
       "materialAnalog": "Material analógico",
+      "lockscreen": "Pantalla de bloqueo",
+      "stretched": "Estirado",
       "lumen": "Lumen",
       "lyrics": "Letra",
       "simpleLyrics": "Letra simple"
@@ -1503,7 +1724,11 @@
     "deploy": {
       "configuring_sddm": "Configurando el gestor de pantalla SDDM...",
       "disabling_dm": "-> Deshabilitando gestor de pantalla en conflicto: {dm}",
-      "sddm_success": "-> Tema material you para SDDM instalado y servicio habilitado [ OK ]"
+      "sddm_success": "-> Tema material you para SDDM instalado y servicio habilitado [ OK ]",
+      "sddm_no_wayland_compositor": "No se encontró un compositor Wayland compatible para la pantalla de inicio de sesión (kwin_wayland/weston), se usa X11 para SDDM.",
+      "sddm_no_xorg": "No se encontró Xorg, se usa {compositor} para SDDM.",
+      "sddm_no_backend": "No se encontró Xorg ni un compositor Wayland compatible para la pantalla de inicio de sesión (kwin_wayland/weston) en /usr/local/bin, /usr/bin o /bin.",
+      "sddm_skipped": "Se omite la configuración de SDDM: no se encontró un servidor gráfico ni un compositor de inicio de sesión utilizable. El gestor de pantalla actual no se modifica."
     }
   },
   "translator": {

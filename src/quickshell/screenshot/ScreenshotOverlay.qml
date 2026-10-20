@@ -72,24 +72,12 @@ PanelWindow {
     property string cachedMode: "false"
     property bool isVideoMode: false
 
-    IpcHandler {
-        target: "screenshotOverlay"
-
-        function toggle(img: string, editMode: string, audioPrefs: string, cGeom: string, cGeomVideo: string, cMode: string, cBackend: string, targetMon: string): void {
-            if (root.isActive) {
-                if (img && img !== "") Quickshell.execDetached(["bash", "-c", "rm -f " + img]);
-                root.deactivate();
-            } else {
-                root.activate(img, editMode, audioPrefs, cGeom, cGeomVideo, cMode, cBackend, targetMon);
-            }
-        }
-
-        function activate(img: string, editMode: string, audioPrefs: string, cGeom: string, cGeomVideo: string, cMode: string, cBackend: string, targetMon: string): void {
-            root.activate(img, editMode, audioPrefs, cGeom, cGeomVideo, cMode, cBackend, targetMon);
-        }
-
-        function deactivate(): void {
+    function toggleOverlay(img, editMode, audioPrefs, cGeom, cGeomVideo, cMode, cBackend, targetMon) {
+        if (root.isActive) {
+            if (img && img !== "") Quickshell.execDetached(["bash", "-c", "rm -f " + img]);
             root.deactivate();
+        } else {
+            root.activate(img, editMode, audioPrefs, cGeom, cGeomVideo, cMode, cBackend, targetMon);
         }
     }
 
@@ -372,6 +360,17 @@ PanelWindow {
     property bool micMute: false
     property string micDevice: ""
     property bool audioPrefsLoaded: false
+
+    readonly property bool liveAudioLevels: root.videoBackend === "gpu-screen-recorder"
+    readonly property PwNode deskLiveNode: Audio.defaultSink
+    readonly property PwNode micLiveNode: {
+        for (const n of Audio.inputs) {
+            if (n.name === root.micDevice) return n;
+        }
+        return Audio.defaultSource;
+    }
+    readonly property real deskLiveVol: root.deskLiveNode && root.deskLiveNode.audio ? root.deskLiveNode.audio.volume : 0
+    readonly property real micLiveVol: root.micLiveNode && root.micLiveNode.audio ? root.micLiveNode.audio.volume : 0
 
     FileView {
         id: audioPrefsFile
@@ -768,10 +767,20 @@ PanelWindow {
 
             Rectangle {
                 anchors.fill: parent
-                color: ThemeBackend.base
+                color: ThemeBackend.liquidGlass ? Qt.alpha(ThemeBackend.base, ThemeBackend.elementOpacity) : ThemeBackend.base
                 border.color: Qt.rgba(ThemeBackend.text.r, ThemeBackend.text.g, ThemeBackend.text.b, 0.08)
-                border.width: s(1)
+                border.width: ThemeBackend.liquidGlass ? 0 : s(1)
                 radius: ThemeBackend.borderRadius
+
+                WallpaperBlur {
+                    z: -1
+                    anchors.fill: parent
+                    surfaceEnabled: ThemeBackend.liquidGlass
+                    topLeftRadius: parent.radius
+                    topRightRadius: parent.radius
+                    bottomLeftRadius: parent.radius
+                    bottomRightRadius: parent.radius
+                }
 
                 MouseArea {
                     anchors.fill: parent
@@ -796,9 +805,9 @@ PanelWindow {
                 anchors.top: toolbar.fitsOutsideBottom ? parent.bottom : undefined
                 anchors.topMargin: toolbar.fitsOutsideBottom ? s(4) : 0
 
-                color: ThemeBackend.base
+                color: ThemeBackend.liquidGlass ? Qt.alpha(ThemeBackend.base, ThemeBackend.elementOpacity) : ThemeBackend.base
                 border.color: Qt.rgba(ThemeBackend.text.r, ThemeBackend.text.g, ThemeBackend.text.b, 0.08)
-                border.width: s(1)
+                border.width: ThemeBackend.liquidGlass ? 0 : s(1)
                 radius: ThemeBackend.borderRadius
                 z: 50
                 opacity: showMenu ? 1.0 : 0.0
@@ -808,6 +817,16 @@ PanelWindow {
                 Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
 
                 visible: opacity > 0
+
+                WallpaperBlur {
+                    z: -1
+                    anchors.fill: parent
+                    surfaceEnabled: ThemeBackend.liquidGlass
+                    topLeftRadius: parent.radius
+                    topRightRadius: parent.radius
+                    bottomLeftRadius: parent.radius
+                    bottomRightRadius: parent.radius
+                }
 
                 ListView {
                     anchors.fill: parent
@@ -819,7 +838,18 @@ PanelWindow {
                         width: ListView.view.width
                         height: s(40)
                         radius: ThemeBackend.borderRadius
-                        color: maBackendItem.containsMouse ? ThemeBackend.surface0 : "transparent"
+                        color: (backendItemGlass.active || !maBackendItem.containsMouse) ? "transparent" : ThemeBackend.surface0
+
+                        GlassFill {
+                            id: backendItemGlass
+                            anchors.fill: parent
+                            radius: parent.radius
+                            allowed: maBackendItem.containsMouse
+                            tintColor: ThemeBackend.text
+                            tintAmount: 0.14
+                            tintStrength: 1.0
+                            press: 0.25
+                        }
 
                         RowLayout {
                             anchors.fill: parent
@@ -887,9 +917,9 @@ PanelWindow {
                 anchors.top: toolbar.fitsOutsideBottom ? parent.bottom : undefined
                 anchors.topMargin: toolbar.fitsOutsideBottom ? s(4) : 0
 
-                color: ThemeBackend.base
+                color: ThemeBackend.liquidGlass ? Qt.alpha(ThemeBackend.base, ThemeBackend.elementOpacity) : ThemeBackend.base
                 border.color: Qt.rgba(ThemeBackend.text.r, ThemeBackend.text.g, ThemeBackend.text.b, 0.08)
-                border.width: s(1)
+                border.width: ThemeBackend.liquidGlass ? 0 : s(1)
                 radius: ThemeBackend.borderRadius
                 z: 50
                 opacity: showMenu ? 1.0 : 0.0
@@ -899,6 +929,16 @@ PanelWindow {
                 Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
 
                 visible: opacity > 0
+
+                WallpaperBlur {
+                    z: -1
+                    anchors.fill: parent
+                    surfaceEnabled: ThemeBackend.liquidGlass
+                    topLeftRadius: parent.radius
+                    topRightRadius: parent.radius
+                    bottomLeftRadius: parent.radius
+                    bottomRightRadius: parent.radius
+                }
 
                 Text {
                     visible: Audio.inputs.length === 0
@@ -919,7 +959,18 @@ PanelWindow {
                         width: ListView.view.width
                         height: micDropdown.itemHeight
                         radius: ThemeBackend.borderRadius
-                        color: maList.containsMouse ? ThemeBackend.surface0 : "transparent"
+                        color: (micItemGlass.active || !maList.containsMouse) ? "transparent" : ThemeBackend.surface0
+
+                        GlassFill {
+                            id: micItemGlass
+                            anchors.fill: parent
+                            radius: parent.radius
+                            allowed: maList.containsMouse
+                            tintColor: ThemeBackend.text
+                            tintAmount: 0.14
+                            tintStrength: 1.0
+                            press: 0.25
+                        }
 
                         RowLayout {
                             anchors.fill: parent
@@ -982,6 +1033,9 @@ PanelWindow {
                 property bool mutedValue: false
                 property bool hasDropdown: false
                 property bool sliderOpen: false
+                property bool readOnly: false
+                property real liveVolume: 0
+                readonly property real displayVolume: audioCtrl.readOnly ? audioCtrl.liveVolume : audioCtrl.volumeValue
 
                 signal volumeUpdate(real newVol)
                 signal muteUpdate(bool newMute)
@@ -1041,7 +1095,8 @@ PanelWindow {
                             height: s(18)
                             from: 0.0
                             to: 100.0
-                            value: Math.round(audioCtrl.volumeValue * 100)
+                            value: Math.round(audioCtrl.displayVolume * 100)
+                            enabled: !audioCtrl.readOnly
                             stepSize: 1.0
                             backgroundColor: ThemeBackend.surface1
                             accentColor: audioCtrl.mutedValue ? ThemeBackend.surface2 : ThemeBackend.mauve
@@ -1057,8 +1112,8 @@ PanelWindow {
 
                             Connections {
                                 target: audioCtrl
-                                function onVolumeValueChanged() {
-                                    volSlider.value = Math.round(audioCtrl.volumeValue * 100);
+                                function onDisplayVolumeChanged() {
+                                    volSlider.value = Math.round(audioCtrl.displayVolume * 100);
                                 }
                             }
 
@@ -1129,9 +1184,19 @@ PanelWindow {
                         width: s(136)
                         height: s(36)
                         radius: ThemeBackend.borderRadius
-                        color: backendDropdown.showMenu ? ThemeBackend.surface1 : (backendMa.containsMouse ? ThemeBackend.surface1 : ThemeBackend.surface0)
+                        color: backendBtnGlass.active ? "transparent" : (backendDropdown.showMenu ? ThemeBackend.surface1 : (backendMa.containsMouse ? ThemeBackend.surface1 : ThemeBackend.surface0))
                         border.color: Qt.rgba(ThemeBackend.text.r, ThemeBackend.text.g, ThemeBackend.text.b, 0.08)
-                        border.width: s(1)
+                        border.width: backendBtnGlass.active ? 0 : s(1)
+
+                        GlassFill {
+                            id: backendBtnGlass
+                            anchors.fill: parent
+                            radius: parent.radius
+                            tintColor: ThemeBackend.surface1
+                            tintAmount: 0.3
+                            shadow: 1
+                            press: backendDropdown.showMenu ? 0.6 : (backendMa.containsMouse ? 0.25 : 0)
+                        }
 
                         RowLayout {
                             anchors.fill: parent
@@ -1189,6 +1254,7 @@ PanelWindow {
                         anchors.fill: parent
                         iconOn: "󰓃"; iconOff: "󰓄"
                         volumeValue: root.deskVol; mutedValue: root.deskMute
+                        readOnly: root.liveAudioLevels; liveVolume: root.deskLiveVol
                         onVolumeUpdate: (v) => { root.deskVol = v; root.saveAudioPrefs() }
                         onMuteUpdate: (m) => { root.deskMute = m; root.saveAudioPrefs() }
                         onToggleSlider: {
@@ -1206,6 +1272,7 @@ PanelWindow {
                         anchors.fill: parent
                         iconOn: "󰍬"; iconOff: "󰍭"; hasDropdown: true
                         volumeValue: root.micVol; mutedValue: root.micMute
+                        readOnly: root.liveAudioLevels; liveVolume: root.micLiveVol
                         onVolumeUpdate: (v) => { root.micVol = v; root.saveAudioPrefs() }
                         onMuteUpdate: (m) => { root.micMute = m; root.saveAudioPrefs() }
                         onToggleSlider: {
@@ -1356,9 +1423,19 @@ PanelWindow {
                 width: qrPopupLayout.implicitWidth + s(32)
                 height: s(52)
                 radius: ThemeBackend.borderRadius
-                color: ThemeBackend.base
+                color: ThemeBackend.liquidGlass ? Qt.alpha(ThemeBackend.base, ThemeBackend.elementOpacity) : ThemeBackend.base
                 border.color: model.qSuccess ? ThemeBackend.green : ThemeBackend.red
                 border.width: s(2)
+
+                WallpaperBlur {
+                    z: -1
+                    anchors.fill: parent
+                    surfaceEnabled: ThemeBackend.liquidGlass
+                    topLeftRadius: parent.radius
+                    topRightRadius: parent.radius
+                    bottomLeftRadius: parent.radius
+                    bottomRightRadius: parent.radius
+                }
 
                 property bool isHovered: maHover.containsMouse
                 scale: isHovered ? 1.0 : model.qBaseScale
@@ -1539,6 +1616,7 @@ PanelWindow {
         Quickshell.execDetached(["bash", "-c", "rm -f " + Caching.getRunDir("screenshot") + "/qr_result"]);
         root.isScanningQr = true; root.showQrPopup = false; qrModel.clear();
         let cmd = `bash ${Caching.serpantinumDir}/scripts/screenshot.sh --geometry "${root.geometryString}" --scan-qr`;
+        cmd += root.frozenSourceArgs();
         Quickshell.execDetached(["bash", "-c", cmd]);
         qrWaitTimer.start();
     }   
@@ -1553,8 +1631,19 @@ PanelWindow {
         }
     }
 
+    function frozenSourceArgs() {
+        if (root.freezeImg === "" || root.isVideoMode || root.isRefreezing) return "";
+        let rect = `${Math.round(root.selX)},${Math.round(root.selY)} ${Math.round(root.selW)}x${Math.round(root.selH)}`;
+        return ` --source "${root.freezeImg}" --crop "${rect}" --logical-size "${Math.round(root.width)}x${Math.round(root.height)}"`;
+    }
+
     function executeCapture(openEditor, isRecord) {
         let cmd = `bash ${Caching.serpantinumDir}/scripts/screenshot.sh --geometry "${root.geometryString}"`;
+        let useFrozen = !isRecord && root.frozenSourceArgs() !== "";
+        if (useFrozen) {
+            cmd += root.frozenSourceArgs();
+            root.freezeImg = "";
+        }
         if (isRecord) {
             if (root.targetMonitorName !== "") cmd += ` --monitor "${root.targetMonitorName}"`;
             cmd += " --record";
@@ -1565,9 +1654,13 @@ PanelWindow {
         }
         if (openEditor) cmd += " --edit";
 
-        captureTimer.pendingCmd = cmd;
         root.animateChanges = false;
-        captureTimer.start();
+        if (useFrozen) {
+            Quickshell.execDetached(["bash", "-c", cmd]);
+        } else {
+            captureTimer.pendingCmd = cmd;
+            captureTimer.start();
+        }
         root.deactivate();
     }
 }
