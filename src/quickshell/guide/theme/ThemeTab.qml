@@ -895,7 +895,7 @@ Item {
 
     Flickable {
         anchors.fill: parent
-        anchors.topMargin: rootObj.s(4)
+        anchors.topMargin: rootObj.s(8)
         anchors.leftMargin: rootObj.s(8)
         anchors.rightMargin: rootObj.s(8)
         anchors.bottomMargin: rootObj.s(4)
@@ -906,8 +906,7 @@ Item {
 
         ColumnLayout {
             id: settingsCol
-            x: rootObj.s(6)
-            width: parent.width - rootObj.s(12)
+            width: parent.width
             spacing: rootObj.s(6)
 
             Item {

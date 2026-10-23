@@ -85,13 +85,24 @@ show_help() {
     echo ""
     echo "$(t "cli.commands")"
     echo "  launch <target> [args...]   $(t "cli.launch_desc")"
+    echo "  settings [tab]               $(t "cli.settings_desc")"
     echo "  msg <action|workspace> ...  $(t "cli.msg_desc")"
     echo "  ipc ...                      $(t "cli.ipc_desc")"
     echo "  kill                         $(t "cli.kill_desc")"
+    echo "  restart                      $(t "cli.restart_desc")"
+    echo "  config <action> [args]       $(t "cli.config_desc")"
+    echo "  info <topic>                 $(t "cli.info_desc")"
+    echo "  set <topic> [value]          $(t "cli.set_desc")"
+    echo "  trigger <action> [args]      $(t "cli.trigger_desc")"
     echo ""
     echo "$(t "cli.script_commands")"
     echo "  exit                         $(t "cli.scripts.exit")"
     echo "  lock                         $(t "cli.scripts.lock")"
+    echo "  suspend                      $(t "cli.scripts.suspend")"
+    echo "  hibernate                    $(t "cli.scripts.hibernate")"
+    echo "  reboot                       $(t "cli.scripts.reboot")"
+    echo "  poweroff                     $(t "cli.scripts.poweroff")"
+    echo "  redactor [monitor] [widget]  $(t "cli.scripts.redactor")"
     echo "  volume                       $(t "cli.scripts.volume")"
     echo "  reload                       $(t "cli.scripts.reload")"
     echo "  weather                      $(t "cli.scripts.weather")"
@@ -129,6 +140,7 @@ show_launch_help() {
     echo "$(t "cli.launch_help.available_targets")"
     echo "  start            $(t "cli.launch_help.target_start")"
     echo "  widgetredactor  $(t "cli.launch_help.target_widgetredactor")"
+    echo "  lock-redactor   $(t "cli.launch_help.target_lock_redactor")"
     echo ""
     echo "$(t "cli.options")"
     echo "  -d, --detach   $(t "cli.opt_detach")"
@@ -241,6 +253,13 @@ if [[ "$1" == "kill" ]]; then
     exit 0
 fi
 
+if [[ "$1" == "restart" ]]; then
+    stop_daemon
+    ensure_daemon
+    echo "$(t "cli.daemon_restarted")"
+    exit 0
+fi
+
 if [[ "$1" == "launch" ]]; then
     if [[ "$2" == "-h" || "$2" == "--help" ]]; then
         show_launch_help
@@ -259,6 +278,11 @@ if [[ "$1" == "launch" ]]; then
             ;;
         widgetredactor)
             QML_NAME="WidgetRedactor"
+            ;;
+        lock-redactor)
+            shift 2
+            cli_lock_redactor "$@"
+            exit $?
             ;;
         *)
             echo "$(t "cli.error_unknown_target" TARGET="$2")"
@@ -309,6 +333,11 @@ if [[ "$1" == "launch" ]]; then
     fi
 fi
 
+if [[ "$1" == "settings" ]]; then
+    shift
+    exec "$SERPANTINUM_DIR/scripts/settings.sh" "$@"
+fi
+
 if [[ "$1" == "msg" ]]; then
     if [[ "$2" == "-h" || "$2" == "--help" || -z "$2" ]]; then
         show_msg_help
@@ -345,9 +374,37 @@ if [[ "$1" == "ipc" ]]; then
     exec quickshell -p "$SHELL_QML" ipc "$@"
 fi
 
+case "$1" in
+    config)
+        shift
+        cli_config "$@"
+        exit $?
+        ;;
+    info)
+        shift
+        cli_info "$@"
+        exit $?
+        ;;
+    set)
+        shift
+        cli_set "$@"
+        exit $?
+        ;;
+    trigger)
+        shift
+        cli_trigger "$@"
+        exit $?
+        ;;
+esac
+
 ALLOWED_SCRIPTS=(
     "exit"
     "lock"
+    "suspend"
+    "hibernate"
+    "reboot"
+    "poweroff"
+    "redactor"
     "volume"
     "reload"
     "weather"
