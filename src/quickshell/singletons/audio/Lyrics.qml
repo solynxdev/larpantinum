@@ -1022,7 +1022,7 @@ Item {
         command: [
             "bash",
             "-c",
-            'CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/larpantinum/lyrics"; HASH=$(echo -n "$1" | md5sum | cut -d" " -f1); if [ -n "$2" ] && [ -f "$HOME/Music/Lyrics/$2.lrc" ] && [ -s "$HOME/Music/Lyrics/$2.lrc" ]; then echo LRC; cat "$HOME/Music/Lyrics/$2.lrc"; exit 0; fi; FILE="$CACHE_DIR/${HASH}.json"; if [ -f "$FILE" ] && [ -s "$FILE" ]; then echo JSON; cat "$FILE"; fi',
+            'CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/larpantinum/lyrics"; HASH=$(echo -n "$1" | md5sum | cut -d" " -f1); printf "%s\\n" "$1"; if [ -n "$2" ] && [ -f "$HOME/Music/Lyrics/$2.lrc" ] && [ -s "$HOME/Music/Lyrics/$2.lrc" ]; then echo LRC; cat "$HOME/Music/Lyrics/$2.lrc"; exit 0; fi; FILE="$CACHE_DIR/${HASH}.json"; if [ -f "$FILE" ] && [ -s "$FILE" ]; then echo JSON; cat "$FILE"; fi',
             "--",
             targetKey,
             targetTitle
@@ -1032,13 +1032,19 @@ Item {
             onStreamFinished: {
                 let raw = this.text;
                 let key = cacheReadProcess.targetKey;
+                // bash echoes the key it was launched with on line 1, so a read
+                // that returns after the track changed can be discarded instead
+                // of applying stale lyrics to the new track.
+                let nl = raw.indexOf("\n");
+                let echoedKey = nl < 0 ? raw : raw.substring(0, nl);
                 if (echoedKey !== key.split("\n")[0]) return;
                 if (key !== root.currentTrackKey || key !== root.activeFetchKey) return;
 
-                // bash tags the first line LRC / JSON so we know how to parse the rest
-                let nl = raw.indexOf("\n");
-                let tag = (nl >= 0 ? raw.substring(0, nl) : raw).trim();
-                let body = nl >= 0 ? raw.substring(nl + 1) : "";
+                // line 2 is the LRC / JSON tag; everything after is the body
+                let rest = nl < 0 ? "" : raw.substring(nl + 1);
+                let nl2 = rest.indexOf("\n");
+                let tag = (nl2 >= 0 ? rest.substring(0, nl2) : rest).trim();
+                let body = nl2 >= 0 ? rest.substring(nl2 + 1) : "";
 
                 if (tag === "LRC" && body.trim() !== "") {
                     let parsed = parseWordLevelLyrics(body);
