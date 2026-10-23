@@ -385,6 +385,7 @@ Rectangle {
     property bool showIcon: icon !== ""
     property int iconSize: 32
     property int iconFontSize: 16
+    property int iconOffsetX: 0
     property real iconCornerRadius: ThemeBackend.borderRadius
     property color iconAccentColor: ThemeBackend.surface0
     property color iconTextColor: "#ffffff"
@@ -507,6 +508,7 @@ Rectangle {
                 cornerRadius: root.iconCornerRadius
                 buttonIcon: root.icon
                 iconFontSize: root.s(root.iconFontSize)
+                iconOffsetX: root.s(root.iconOffsetX)
                 accentColor: root.dimmed ? ThemeBackend.surface1 : root.iconAccentColor
                 textColor: root.dimmed ? ThemeBackend.subtext0 : root.iconTextColor
                 onClicked: root.iconClicked()

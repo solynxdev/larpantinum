@@ -15,6 +15,7 @@ Item {
     property string buttonIcon: ""
     property string iconFont: ThemeBackend.iconFont
     property int iconFontSize: 18
+    property int iconOffsetX: 0
 
     property color accentColor: ThemeBackend.surface0
     property color textColor: "#11111b"
@@ -76,7 +77,9 @@ Item {
         }
 
         Text {
-            anchors.centerIn: parent
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.horizontalCenterOffset: root.iconOffsetX
             text: root.buttonIcon
             font.family: root.iconFont
             font.pixelSize: root.iconFontSize

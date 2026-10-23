@@ -1,18 +1,358 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls
+import QtQuick.Effects
+import Quickshell
+import Quickshell.Io
+import "../../"
+import "../../reusables"
+import "../../reusables/guide"
 
-ThemeTabState {
+Item {
     id: themeTabRoot
+    required property var rootObj
+    required property int tabIndex
 
-    property alias fontDropdown: appearanceSection.fontDropdown
-    property alias wpDirDropdown: wallpaperDirRow.wpDirDropdown
-    property alias themeEditorPopup: themeEditorPopup
+    anchors.fill: parent
+    visible: rootObj.currentTab === tabIndex
+    opacity: visible ? 1.0 : 0.0
+    property real slideY: visible ? 0 : rootObj.s(10)
+
+    Behavior on slideY { NumberAnimation { duration: 250; easing.type: Easing.OutQuart } }
+    transform: Translate { y: themeTabRoot.slideY }
+    Behavior on opacity { NumberAnimation { duration: 250 } }
+
+    property var defaultThemeSettings: {
+        "fontFamily": ThemeBackend.fontFamily,
+        "borderRadius": ThemeBackend.borderRadius,
+        "activePreset": "Matugen",
+        "matugen": true,
+        "colors": {}
+    }
+
+    property var themeSettings: Config.getSetting("theme", defaultThemeSettings)
+    property string currentFontFamily: themeSettings.fontFamily !== undefined ? themeSettings.fontFamily : ThemeBackend.fontFamily
+    property int currentBorderRadius: themeSettings.borderRadius !== undefined ? themeSettings.borderRadius : ThemeBackend.borderRadius
+    property string currentPreset: themeSettings.activePreset !== undefined ? themeSettings.activePreset : "Matugen"
+    property bool useMatugen: themeSettings.matugen !== undefined ? themeSettings.matugen : true
+
+    property string currentWallpaperDir: Config.getSetting("wallpaperDir", "") || Config.getSetting("wallpaper_dir", "") || Quickshell.env("WALLPAPER_DIR") || (Quickshell.env("HOME") + "/Pictures/Wallpapers")
+    property var availableWallpaperDirs: []
+
+    property var curatedFonts: ThemeBackend.bundledNames
+    property var blockedFontPatterns: [".notdef", "cursor", "emoji", "symbol", "pcf"]
+    property var availableFonts: []
+
+    function loadAvailableFonts() {
+        if (availableFonts.length > 0) return;
+        let curated = themeTabRoot.curatedFonts;
+        let dedupedCurated = [];
+        let seen = new Set();
+
+        for (let i = 0; i < curated.length; i++) {
+            let key = curated[i].toLowerCase().trim();
+            if (!seen.has(key)) {
+                seen.add(key);
+                dedupedCurated.push(curated[i]);
+            }
+        }
+
+        let rest = [];
+        let raw = Qt.fontFamilies();
+        for (let i = 0; i < raw.length; i++) {
+            let name = raw[i];
+            let key = name.toLowerCase().trim();
+
+            if (seen.has(key)) continue;
+
+            let blocked = false;
+            for (let j = 0; j < themeTabRoot.blockedFontPatterns.length; j++) {
+                if (key.indexOf(themeTabRoot.blockedFontPatterns[j]) !== -1) {
+                    blocked = true;
+                    break;
+                }
+            }
+            if (blocked) continue;
+
+            seen.add(key);
+            rest.push(name);
+        }
+        rest.sort(function(a, b) { return a.localeCompare(b); });
+        let combined = dedupedCurated.concat(rest);
+        if (themeTabRoot.currentFontFamily && combined.indexOf(themeTabRoot.currentFontFamily) === -1) {
+            combined.push(themeTabRoot.currentFontFamily);
+        }
+        themeTabRoot.availableFonts = combined;
+    }
+
+    property var systemPresets: []
+    property var userPresets: []
+    property string themeSearchText: ""
+    property string _lastPresetsStr: ""
+    property bool _needsReload: true
+
+    property var filteredUserPresets: {
+        let txt = themeSearchText.trim().toLowerCase();
+        if (txt === "") return themeTabRoot.userPresets;
+        let res = [];
+        for (let i = 0; i < themeTabRoot.userPresets.length; i++) {
+            let p = themeTabRoot.userPresets[i];
+            if (p && p.name && p.name.toLowerCase().indexOf(txt) !== -1) {
+                res.push(p);
+            }
+        }
+        return res;
+    }
+
+    property var filteredSystemPresets: {
+        let txt = themeSearchText.trim().toLowerCase();
+        let result = [];
+        let pendingDivider = false;
+        for (let i = 0; i < themeTabRoot.systemPresets.length; i++) {
+            let p = themeTabRoot.systemPresets[i];
+            if (p.isDivider) {
+                pendingDivider = true;
+            } else {
+                if (txt === "" || (p.name && p.name.toLowerCase().indexOf(txt) !== -1)) {
+                    if (pendingDivider) {
+                        result.push({ isDivider: true });
+                        pendingDivider = false;
+                    }
+                    result.push(p);
+                }
+            }
+        }
+        return result;
+    }
+
+    property var matugenColors: ({})
+    property color prevMatugenBase: ThemeBackend.base
+    property color prevMatugenText: ThemeBackend.text
+    property color prevMatugenBlue: ThemeBackend.blue
+    property color prevMatugenMauve: ThemeBackend.mauve
+    property color prevMatugenPeach: ThemeBackend.peach
+    property color prevMatugenGreen: ThemeBackend.green
+    property color prevMatugenRed: ThemeBackend.red
+
+    property string activeScreenName: (Quickshell.screens && Quickshell.screens.length > 0 && Quickshell.screens[0].name) ? Quickshell.screens[0].name : ""
+    property string currentWallpaperPath: ""
+    property int wallpaperRevision: 0
+    property bool isWallpaperVideo: {
+        let lp = currentWallpaperPath.toLowerCase();
+        return lp.endsWith(".mp4") || lp.endsWith(".mkv") || lp.endsWith(".mov") || lp.endsWith(".webm") || lp.indexOf("000_") !== -1;
+    }
 
     property real gridAvailableWidth: Math.max(0, settingsCol.width - rootObj.s(24))
     property real tileWidth: Math.max(rootObj.s(80), (gridAvailableWidth - 2 * rootObj.s(10)) / 3)
 
+    Timer {
+        id: borderRadiusDebounceTimer
+        interval: 250
+        repeat: false
+        onTriggered: {
+            themeTabRoot.updateBorderRadiusSetting();
+        }
+    }
+
+    Timer {
+        id: snapshotDebounceTimer
+        interval: 200
+        repeat: false
+        onTriggered: {
+            themeTabRoot.wallpaperRevision++;
+        }
+    }
+
+    function getSnappedRadius(rawVal) {
+        let snapPoints = [0, 2, 4, 8, 10, 16, 24, 32, 48, 52, 58, 64];
+        let rounded = Math.round(rawVal);
+        let closest = snapPoints[0];
+        let minDiff = Math.abs(rounded - snapPoints[0]);
+        for (let i = 1; i < snapPoints.length; i++) {
+            let diff = Math.abs(rounded - snapPoints[i]);
+            if (diff < minDiff) {
+                minDiff = diff;
+                closest = snapPoints[i];
+            }
+        }
+        if (minDiff <= 2) {
+            return closest;
+        }
+        return rounded;
+    }
+
+    FileView {
+        id: wpStateWatcher
+        path: themeTabRoot.activeScreenName !== "" ? (Caching.getCacheDir("wallpaper") + "/current_" + themeTabRoot.activeScreenName) : ""
+        watchChanges: true
+        onFileChanged: reload()
+        onLoaded: {
+            let res = text().trim();
+            if (res !== "" && res !== themeTabRoot.currentWallpaperPath) {
+                themeTabRoot.currentWallpaperPath = res;
+                themeTabRoot.wallpaperRevision++;
+            }
+        }
+    }
+
+    FileView {
+        id: wpSnapshotWatcher
+        path: Caching.getCacheDir("wallpaper") + "/current_wallpaper.png"
+        watchChanges: true
+        onFileChanged: snapshotDebounceTimer.restart()
+        onLoaded: snapshotDebounceTimer.restart()
+    }
+
+    Process {
+        id: wallFetcher
+        running: false
+        command: {
+            let screenName = themeTabRoot.activeScreenName;
+            let mainQmlPath = Caching.mainQml || "";
+            let curDir = themeTabRoot.currentWallpaperDir || "";
+            let pyScript =
+                "import os, subprocess, sys\n" +
+                "home = os.path.expanduser('~')\n" +
+                "main_qml = sys.argv[1]\n" +
+                "screen = sys.argv[2]\n" +
+                "cur_dir = sys.argv[3]\n" +
+                "if not main_qml or not screen:\n" +
+                "    print('')\n" +
+                "    sys.exit(0)\n" +
+                "try:\n" +
+                "    p = subprocess.run(['quickshell', '-p', main_qml, 'ipc', 'call', 'wallpaper', 'getWallpaperPath', screen], capture_output=True, text=True)\n" +
+                "    val = p.stdout.strip()\n" +
+                "except Exception:\n" +
+                "    val = ''\n" +
+                "if not val:\n" +
+                "    try:\n" +
+                "        p = subprocess.run(['quickshell', '-p', main_qml, 'ipc', 'call', 'wallpaper', 'getWallpaper', screen], capture_output=True, text=True)\n" +
+                "    except Exception:\n" +
+                "        val = ''\n" +
+                "if not val:\n" +
+                "    print('')\n" +
+                "    sys.exit(0)\n" +
+                "if os.path.isabs(val) and os.path.exists(val):\n" +
+                "    print(val)\n" +
+                "    sys.exit(0)\n" +
+                "candidates = []\n" +
+                "if cur_dir and os.path.isdir(cur_dir):\n" +
+                "    candidates.append(cur_dir)\n" +
+                "candidates.extend([\n" +
+                "    os.path.join(home, 'Pictures', 'Wallpapers'),\n" +
+                "    os.path.join(home, 'Wallpapers'),\n" +
+                "    os.path.join(home, 'Pictures'),\n" +
+                "    os.path.join(home, 'Videos'),\n" +
+                "    os.path.join(home, 'Videos', 'Wallpapers'),\n" +
+                "    os.path.join(home, '.local/share/wallpapers'),\n" +
+                "    '/usr/share/backgrounds',\n" +
+                "    '/usr/share/wallpapers'\n" +
+                "])\n" +
+                "base_name = os.path.basename(val)\n" +
+                "found = ''\n" +
+                "for d in candidates:\n" +
+                "    target = os.path.join(d, base_name)\n" +
+                "    if os.path.isfile(target):\n" +
+                "        found = target\n" +
+                "        break\n" +
+                "if not found:\n" +
+                "    for root_dir in [os.path.join(home, 'Pictures'), os.path.join(home, 'Wallpapers'), '/usr/share/backgrounds']:\n" +
+                "        if os.path.isdir(root_dir):\n" +
+                "            for root, dirs, files in os.walk(root_dir):\n" +
+                "                if base_name in files:\n" +
+                "                    found = os.path.join(root, base_name)\n" +
+                "                    break\n" +
+                "            if found:\n" +
+                "                break\n" +
+                "if not found:\n" +
+                "    found = os.path.join(cur_dir, val) if cur_dir else val\n" +
+                "print(found)\n";
+            return ["python3", "-c", pyScript, mainQmlPath, screenName, curDir];
+        }
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let res = this.text.trim();
+                if (res !== "" && res !== themeTabRoot.currentWallpaperPath) {
+                    themeTabRoot.currentWallpaperPath = res;
+                    themeTabRoot.wallpaperRevision++;
+                }
+            }
+        }
+    }
+
+    Process {
+        id: wallpaperDirScanner
+        running: false
+        command: [
+            "bash", "-c",
+            "python3 -c '\n" +
+            "import os\n" +
+            "home = os.path.expanduser(\"~\")\n" +
+            "exts = {\".jpg\", \".jpeg\", \".png\", \".webp\", \".bmp\", \".mp4\", \".mkv\", \".mov\", \".webm\"}\n" +
+            "dirs = set()\n" +
+            "candidates = [\n" +
+            "    os.path.join(home, \"Pictures\"),\n" +
+            "    os.path.join(home, \"Pictures\", \"Wallpapers\"),\n" +
+            "    os.path.join(home, \"Wallpapers\"),\n" +
+            "    os.path.join(home, \"Videos\"),\n" +
+            "    os.path.join(home, \"Videos\", \"Wallpapers\"),\n" +
+            "    os.path.join(home, \".local/share/wallpapers\"),\n" +
+            "    \"/usr/share/backgrounds\",\n" +
+            "    \"/usr/share/wallpapers\"\n" +
+            "]\n" +
+            "for c in candidates:\n" +
+            "    if not os.path.isdir(c):\n" +
+            "        continue\n" +
+            "    dirs.add(c)\n" +
+            "    for root, subdirs, files in os.walk(c, followlinks=True):\n" +
+            "        depth = root[len(c):].count(os.sep)\n" +
+            "        if depth > 3:\n" +
+            "            subdirs[:] = []\n" +
+            "            continue\n" +
+            "        subdirs[:] = [d for d in subdirs if not d.startswith(\".\")]\n" +
+            "        if any(os.path.splitext(f)[1].lower() in exts for f in files):\n" +
+            "            dirs.add(root)\n" +
+            "sorted_dirs = sorted(list(dirs), key=lambda x: (x.count(os.sep), x.lower()))\n" +
+            "print(\"\\n\".join(sorted_dirs))\n" +
+            "'"
+        ]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let lines = this.text.trim().split("\n").map(s => s.trim()).filter(s => s.length > 0);
+                if (themeTabRoot.currentWallpaperDir && lines.indexOf(themeTabRoot.currentWallpaperDir) === -1) {
+                    lines.unshift(themeTabRoot.currentWallpaperDir);
+                }
+                themeTabRoot.availableWallpaperDirs = lines;
+            }
+        }
+    }
+
+    Timer {
+        id: activateDebounceTimer
+        interval: 220
+        repeat: false
+        onTriggered: {
+            wallpaperDirScanner.running = false;
+            wallpaperDirScanner.running = true;
+            wallFetcher.running = false;
+            wallFetcher.running = true;
+            if (themeTabRoot._needsReload) {
+                themeTabRoot._needsReload = false;
+                themeTabRoot.reloadThemes();
+            }
+        }
+    }
+
+    function activateTab() {
+        themeTabRoot.loadAvailableFonts();
+        activateDebounceTimer.restart();
+    }
+
     onVisibleChanged: {
-        if (!visible) {
+        if (visible) {
+            activateTab();
+        } else {
+            activateDebounceTimer.stop();
             if (fontDropdown.isOpen) fontDropdown.closePopup();
             if (wpDirDropdown.isOpen) wpDirDropdown.closePopup();
             themeEditorPopup.close();
@@ -570,11 +910,38 @@ ThemeTabState {
             width: parent.width - rootObj.s(12)
             spacing: rootObj.s(6)
 
-            ThemeWallpaperPreview { tab: themeTabRoot }
+            Item {
+                id: wpPreviewContainer
+                Layout.alignment: Qt.AlignHCenter
+                Layout.fillWidth: true
+                Layout.preferredHeight: rootObj.s(220)
+                Layout.topMargin: rootObj.s(6)
+                Layout.bottomMargin: rootObj.s(4)
 
-            ThemeWallpaperDirRow { id: wallpaperDirRow; tab: themeTabRoot }
+                property real highlightFlash: 0.0
+                property int handledHighlightToken: -1
 
-            ThemeAppearanceSection { id: appearanceSection; tab: themeTabRoot }
+                function resolveTabInfo() {
+                    let p = wpPreviewContainer.parent;
+                    let targetTabIdx = -1;
+                    let targetSubTabIdx = -1;
+                    while (p) {
+                        if (targetSubTabIdx === -1 && p.subTabIndex !== undefined) targetSubTabIdx = p.subTabIndex;
+                        if (targetTabIdx === -1 && p.tabIndex !== undefined) targetTabIdx = p.tabIndex;
+                        p = p.parent;
+                    }
+                    let r = themeTabRoot.rootObj;
+                    let tab = "";
+                    let subtab = "";
+                    if (r && r.tabsModel && targetTabIdx >= 0 && targetTabIdx < r.tabsModel.length) {
+                        let tModel = r.tabsModel[targetTabIdx];
+                        tab = tModel.key || tModel.id || "";
+                        if (tModel.subtabs && targetSubTabIdx >= 0 && targetSubTabIdx < tModel.subtabs.length) {
+                            subtab = tModel.subtabs[targetSubTabIdx].key || tModel.subtabs[targetSubTabIdx].id || "";
+                        }
+                    }
+                    return { tab: tab, subtab: subtab };
+                }
 
                 function registerWithSearch() {
                     let r = themeTabRoot.rootObj;
